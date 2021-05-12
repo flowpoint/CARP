@@ -4,7 +4,6 @@ import torch.nn.functional as F
 import numpy as np
 
 from constants import *
-from gpt import HFtransformer
 
 class ContrastiveModel(nn.Module):
     def __init__(self, encA, encB):

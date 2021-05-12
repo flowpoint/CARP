@@ -1,10 +1,8 @@
 from torch import nn
 import torch
 
-
-from transformers import GPT2Tokenizer, GPT2LMHeadModel
 from transformers import DebertaV2Tokenizer, DebertaV2Model
-# GPT2 based text encoder
+
 class TextEncoder(nn.Module):
     def __init__(self):
         super().__init__()
