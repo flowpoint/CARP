@@ -8,7 +8,7 @@ from datasets import load_dataset
 
 import torch
 
-dataset = load_dataset("csv", data_files = 'prompts_full.csv')
+dataset = load_dataset("csv", data_files = 'prompt_responses_full.csv')
 dataset = dataset['train']
 passages = dataset['response']
 comments = dataset['response_children']
