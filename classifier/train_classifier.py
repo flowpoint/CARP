@@ -1,3 +1,5 @@
+from constants import * # MODEL
+
 from dataloader import get_dataset
 import random
 import torch
@@ -30,7 +32,7 @@ from transformers import AutoTokenizer, \
         TrainingArguments, \
         Trainer
 
-tokenizer = AutoTokenizer.from_pretrained("bert-base-cased")
+tokenizer = AutoTokenizer.from_pretrained(MODEL)
 
 def tokenize_function(samples):
     return tokenizer(samples['text'], padding = 'max_length', truncation = True)
@@ -41,7 +43,7 @@ small_eval_dataset = tokenized_datasets["test"].shuffle(seed=42).select(range(10
 full_train_dataset = tokenized_datasets["train"]
 full_eval_dataset = tokenized_datasets["test"]
 
-model = AutoModelForSequenceClassification.from_pretrained("bert-base-cased", num_labels = 2)
+model = AutoModelForSequenceClassification.from_pretrained(MODEL, num_labels = 2)
 training_args = TrainingArguments("test_trainer")
 
 trainer = Trainer(model = model, args = training_args,
