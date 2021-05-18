@@ -5,7 +5,7 @@ import math
 from constants import *
 
 # just needs logits (outer product)
-def clip_loss(logits):
+def clip_loss(logits, dataset):
     # should be a square matrix
     n, _ = logits.shape
     labels = torch.arange(n, device = 'cuda')
