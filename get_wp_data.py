@@ -6,7 +6,7 @@ import os
 # Skips first OFFSET passages for gathering data
 OFFSET = 0
 
-dataset = load_dataset("csv", data_files = 'prompts_full.csv')
+dataset = load_dataset("csv", data_files = 'prompt_responses_full.csv')
 dataset = dataset['train']
 
 passages = dataset['response']
