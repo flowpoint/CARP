@@ -1,4 +1,5 @@
-RowNum,Passage,Comment,isReview
+RowNum,PassageID,Comment,isReview
+0,0,Nice twist!,1
 0,0,Nice twist!,1
 1,0,I really want to know more about this duo. It was simple and heartwarming,1
 2,0,Great twist! It's not often a story surprises me.,1
@@ -17,18 +18,52 @@ RowNum,Passage,Comment,isReview
 15,3,i really need part two... wanna knowwhat happens to me ;),0
 16,4,Lily /Lucy? Awesome story! Would love to know what happened next,1
 17,5,This really explains so much about this past year. =),0
-18,5,Here you go again that 2020 note made me double check who wrote this yup my fav writer on here. Dope as always,1
+18,5,Here you go again that 2020 note made me double check who wrote this yup my fav writer on here. Dope as always,0
 19,5,Stop saying chord. :/,1
 20,6,So long and thanks for all the fish.,0
 21,6,But he said the humans were the chosen....,1
 22,7,"Seems awfully short, I hope there's more.",1
 23,8,">Schambambuckli\n\nHey, I recognize that name.",0
 24,9,You had me at the banana suits. Thank you for the submission!,1
-25,9,As an Anthropology major... we use Chicago,0
-26,9,">Anthropology is a science! he spat. We are not tobacco-smoking, goatee-wearing, Humanities Hippies! You must always, ALWAYS use APA!\n\nThis is gold.",1
-27,9,TIL APA is exclusively for science and MLA for humanities,0
-28,9,"> Kevin... Its been years. You call me now to ask about citation format?!""\n\nMe when the fourth year undergraduates I teach *still* don\",0
-29,9,", ",0
-30,9,", ",0
-31,9,", ",0
-32,9,", ",0
+0,9,You had me at the banana suits. Thank you for the submission!,1
+1,9,As an Anthropology major... we use Chicago,1
+2,9,">Anthropology is a science! he spat. We are not tobacco-smoking, goatee-wearing, Humanities Hippies! You must always, ALWAYS use APA!\n\nThis is gold.",1
+3,9,TIL APA is exclusively for science and MLA for humanities,1
+4,9,"> Kevin... Its been years. You call me now to ask about citation format?!""\n\nMe when the fourth year undergraduates I teach *still* don\'t know how to use references. This is absolute gold. Love it!",1
+5,9,Beautifully written,1
+6,9,I..I actually subscribed...please reveal more of your teachings all mighty scribe. \n\n*Bows in the presence of divinity*,0
+7,9,Minions: The Origin Story,1
+8,9,"> Kevin Kevin Bo-Bevin, Kevin chanted. Banana Fanna Fo-Fevin. Fee Fi Mo-Mevin. Kevin!\n\nJ-Jonah Hill? Is that you...?",1
+9,9,Love how the professor really wants Kevin to do the right thing but can't help being curious at how fascinating and exciting that thesis is turning out ,1
+10,9,"So, where is this Banana Republic?",0
+11,9,Nice take :),1
+12,9,"That was amazing, you got me at Mo-mevin\n\nIt was so good I had to go read it to my mom, she really liked it too!",1
+13,9,A  masterpiece,1
+14,9,"And you've got a subscriber, banana senpai.",0
+15,9,"Bo-Bevin entered The University as though it was his Triumph. The Cult of Bannana pushed the Pineapple Federation out of The State entirely, driving them back to the The borders. The Cult of Bannana occupied all major locations, enslaving much of the population and peacefully lording over the rest. Under the bananas bananer, civilization - unforgiving as it was - finally came to the State.",0
+16,9,Thanks. Ill do all my finals is APA now ,1
+17,9,"I really thought this was /u/Ramses_the_Pigeon, you've got a gift.",0
+18,9,This was a fun one to read! And the last line GOT me. Perfect ending.,1
+19,9,"I lost it at\nKevin Kevin Bo-Bevin, Banana Fanna Fo-Fevin.  Fee Fi Mo-Mevin. *Kevin!*\n\nExcellent work, very hilarious.",0
+20,9,"> Anthropology is a *science!* he screamed.  We are not tobacco-smoking, goatee-wearing, armchair-musing Humanities Hippies!  You must always, *ALWAYS* use APA! \n\nThis was glorious. Thank you for this masterpiece ",1
+21,9,Oh my gosh the ending XD,1
+22,9,Write a book about this please,1
+23,9,The MLA and APA is what really got me at the end. So damn funny!,1
+24,9,i was positive you were going in a minions direction with the bananas and kevin,0
+25,9,"This is the best thing I've read in my life, hands down",1
+26,9,User name definitively checks out! :D,0
+27,9,Fascinating,0
+28,9,Thank you for this. Lol. Banana Republic,1
+29,9,"Brilliant, and the ""banana republic"" earns you an audible groan.",1
+30,9,"Damn, looks like k vin got smart...",0
+31,9,Love this!,1
+32,9,i remember that courage the cowardly dog episode ,0
+33,9,"APA sucks so much, it changes everytime I blink and the different 16 versions all look almost the same to me",1
+34,9,Dang I like mla more,0
+35,9,Was skippyhasyourmoney a supporter or the backer of this if so I want in !!!,0
+36,9,"This is good, I imagine Professor Johnson is more like Kevins co-worker from Brooklyn Nine-Nine",1
+37,9,stares in Chicago \n(Im sorry Chicago is the best citation system fight me),0
+38,9,absolutely brilliant,1
+39,9,"I love it. If bananas can achieve such feats, imagine what the Club of Durians will.",1
+40,10,That citation list has go to be one of the best and most hilarious illustrations of narcissism I have ever seen. Thank you so much for this I can not stop laughing,0
+41,10,What did Norway ever do to you?  \n\n\nAside from dare defy our prophet and Hemfield-ent of the USH?,0
