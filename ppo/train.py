@@ -20,39 +20,37 @@ def kl_reward(new_log_probs, baseline_log_probs):
     kl_divs = torch.sum(kl_divs, dim = 1)
     return kl_divs.mean()
 
-# PPO loss function
-def ppo_loss(model, state_batch, action_batch, action_log_probs, adv_batch, reward_batch):
-    probs, new_value = model(state_batch)
+# PPO loss functions
+def policy_loss(model, state_batch, action_batch, action_log_probs, adv_batch):
+    pi, _, _ = model(state_batch)
 
-    # Finds probabilities of new model taking the actions
-    # the old one took
-    new_log_probs = probs.gather(1, action_batch.unsqueeze(1))
-    new_log_probs = new_log_probs.squeeze()
-    new_log_probs = torch.log(new_log_probs)
+    new_log_probs = pi.log_prob(action_batch)
 
     ratio = (new_log_probs - action_log_probs).exp()
     surr1 = ratio * adv_batch
     surr2 = torch.clamp(ratio, 1 - EPSILON, 1 + EPSILON) * adv_batch
 
-    actor_loss = (-torch.min(surr1, surr2)).mean()
-    critic_loss = (new_value - reward_batch).pow(2).mean() # MSE
+    loss = - torch.min(surr1, surr2).mean()
+    ent_loss = pi.entropy().mean()
 
-    loss = actor_loss + CRITIC_COEFF * critic_loss
-    return loss
+    return loss + ENT_COEFF * ent_loss
+
+def value_loss(model, state_batch, target_batch):
+    _, value, _ = model(state_batch)
+    return (value - target_batch).pow(2).mean()
 
 # Runs a single train stage over rollout
-def train_PPO(model, optimizer, rollout_store):
-    # NOTE: Not yet sure on what to actually put in rollout
+def train_PPO(model, opt_actor, opt_critic, rollout_store):
+    rollout_store.cuda()
+    rollout_store.detach()
 
-    log_probs, values, states, actions, rewards, _ = rollout_store.unwind()
-    
-    # For some reason rewards keep getting put on autograd
-    # NOTE: Maybe specific to gym environments?
-    rewards = rewards.detach().squeeze()
-    
-    advantages = util.normalize(rewards - values)
+    size = rollout_store.size
 
-    size = len(states)
+    targets = util.get_RTG(rollout_store.get('reward'))
+    advantages = util.get_advs(rollout_store.get('reward'),
+            rollout_store.get('value'))
+
+    size = rollout_store.size
     total_loss = 0
 
     model.train()
@@ -63,13 +61,20 @@ def train_PPO(model, optimizer, rollout_store):
         else:
             inds = util.generate_indices(size, BATCH_SIZE)
         for ind in inds:
-            optimizer.zero_grad()
-            
-            loss = ppo_loss(model, states[ind], actions[ind], log_probs[ind],
-                    advantages[ind], rewards[ind])
-            total_loss += loss.item()
+            state_batch = rollout_store.store['state'][ind]
+            act_batch = rollout_store.store['action'][ind]
+            log_prob_batch = rollout_store.store['log_prob'][ind]
+            reward_batch = rollout_store.store['reward'][ind]
 
-            loss.backward()
-            nn.utils.clip_grad_norm_(model.parameters(), MAX_GRAD_NORM)
-            optimizer.step()
+            actor_loss = policy_loss(model, state_batch, act_batch,
+                    log_prob_batch, advantages[ind])
+            critic_loss = value_loss(model, state_batch, targets[ind])
+            loss = actor_loss + CRITIC_COEFF * critic_loss
+            opt_actor.zero_grad()
+            opt_critic.zero_grad()
+            opt_actor.step()
+            opt_critic.step()
+
+            total_loss += loss.item()
+            
     return total_loss
