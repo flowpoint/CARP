@@ -1,3 +1,5 @@
+import torch
+
 from constants import *
 
 # get generalized advantage estimate with next value, rewards, masks and values
@@ -14,10 +16,24 @@ def get_GAE(next_v, r, m, v):
 
     return returns
 
-NUM_ITEMS = 5 # Different items to store in rollout
+# Normalize tensor by its mean and std
+def normalize(t):
+    return (t - t.mean()) / (t.std() + 1e-8)
 
+def makeMask(done):
+    mask = torch.tensor([1.0 - done], device = 'cuda')
+    return mask
+
+def generate_indices(total_size, batch_size):
+    inds = torch.randperm(total_size)
+    return [inds[i * batch_size:(i+1) * batch_size] for i
+            in range(0, total_size // batch_size)]
+
+NUM_ITEMS = 6 # Different items to store in rollout
+
+# Assumed order is [log_probs, values, states, actions, rewards, masks]
 class RolloutStorage:
-    def __init__(self, max_size):
+    def __init__(self):
         self.store = [[] for _ in range(NUM_ITEMS)]
 
     def add(self, L):
@@ -25,7 +41,7 @@ class RolloutStorage:
             self.store[i].append(L[i])
 
     def unwind(self):
-        retval = [torch.cat(self.store[i]) for i in range(ROLLOUT_ITEMS)]
+        retval = [torch.cat(self.store[i]) for i in range(NUM_ITEMS)]
         return retval
 
     def update_gae(self, next_v):
