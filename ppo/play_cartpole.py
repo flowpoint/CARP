@@ -12,8 +12,7 @@ agent.cuda()
 
 storage = util.RolloutStorage()
 
-opt_V = torch.optim.AdamW(agent.critic.parameters(), lr = 1e-3)
-opt_P = torch.optim.AdamW(agent.actor.parameters(), lr = 3e-4)
+opt = torch.optim.Adam(agent.parameters(), lr = LEARNING_RATE)
 
 TIME_LIMIT = 9999
 EPISODES = 1000
@@ -30,8 +29,7 @@ for episode in range(EPISODES):
     total_r = 0
 
     for t in range(TIME_LIMIT):
-        with torch.no_grad():
-            pi, v, a = agent(s)
+        pi, v, a = agent(s)
         v = v[0].item()
         log_prob = pi.log_prob(a)
 
@@ -49,8 +47,7 @@ for episode in range(EPISODES):
     _, next_v, _ = agent(s_next)
     storage.set_terminal(next_v)
 
-    loss = train.train_PPO(agent, opt_P, opt_V, storage)
+    loss = train.train_PPO(agent, opt, storage)
     storage.reset()
-    print(loss)
-    print("REWARD: " + str(total_r))
+    print("EPISODE " + str(episode) + "|Loss " + str(round(loss, 2)) + "|REWARD " + str(total_r))
 env.close()

@@ -35,19 +35,19 @@ class BaseLinePPO(nn.Module):
         super().__init__()
 
         self.actor = nn.Sequential(
-            nn.Linear(state_dim, 64),
-            nn.Tanh(),
-            nn.Linear(64, 32),
-            nn.Tanh(),
-            nn.Linear(32, action_dim),
+            nn.Linear(state_dim, 24),
+            nn.ReLU(),
+            nn.Linear(24, 24),
+            nn.ReLU(),
+            nn.Linear(24, action_dim),
             nn.Softmax(dim = -1))
 
         self.critic = nn.Sequential(
-            nn.Linear(state_dim, 64),
-            nn.Tanh(),
-            nn.Linear(64, 32),
-            nn.Tanh(),
-            nn.Linear(32, 1))
+            nn.Linear(state_dim, 24),
+            nn.ReLU(),
+            nn.Linear(24, 24),
+            nn.ReLU(),
+            nn.Linear(24, 1))
 
     def forward(self, x):
         act_probs = self.actor(x)

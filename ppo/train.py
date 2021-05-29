@@ -40,14 +40,14 @@ def value_loss(model, state_batch, target_batch):
     return (value - target_batch).pow(2).mean()
 
 # Runs a single train stage over rollout
-def train_PPO(model, opt_actor, opt_critic, rollout_store):
+def train_PPO(model, opt, rollout_store):
     rollout_store.cuda()
     rollout_store.detach()
 
     size = rollout_store.size
-
-    targets = util.get_RTG(rollout_store.get('reward'))
-    advantages = util.get_advs(rollout_store.get('reward'),
+    
+    targets, advantages = util.get_targets_and_advs(
+            rollout_store.get('reward'),
             rollout_store.get('value'))
 
     size = rollout_store.size
@@ -70,10 +70,10 @@ def train_PPO(model, opt_actor, opt_critic, rollout_store):
                     log_prob_batch, advantages[ind])
             critic_loss = value_loss(model, state_batch, targets[ind])
             loss = actor_loss + CRITIC_COEFF * critic_loss
-            opt_actor.zero_grad()
-            opt_critic.zero_grad()
-            opt_actor.step()
-            opt_critic.step()
+            
+            opt.zero_grad()
+            loss.backward()
+            opt.step()
 
             total_loss += loss.item()
             

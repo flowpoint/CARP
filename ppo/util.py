@@ -2,27 +2,21 @@ import torch
 
 from constants import *
 
-# gets normalized generalized advantage estimates
-def get_advs(rewards, values):
-    advantages = torch.zeros_like(rewards)
-    for t in range(len(rewards)):
-        adv = 0
-        for l in range(0, len(rewards) - t - 1):
-            delta = rewards[t + l] + \
-                    GAMMA * values[t + l + 1] - values[t + 1]
-            adv += ((GAMMA * TAU) ** l) * delta
-        adv += ((GAMMA * TAU) ** l) * (rewards[t + l] - values[t + l])
-        advantages[t] = adv
-    return normalize(advantages)
+# Expect values to be one longer than rewards
+def get_targets_and_advs(rewards, values):
+    td_target = rewards + GAMMA * values[1:] # reward + value of next state
+    td_target[-1] = rewards[-1] # Remove discounted future reward from terminal
+    
+    delta = td_target - values[:-1] # Difference between target and predicted value
 
-# Discount future rewards (reward to go)
-def get_RTG(rewards):
-    total = 0
-    rtg = torch.zeros_like(rewards)
-    for t in reversed(range(len(rewards))):
-        total = total * GAMMA + rewards[t]
-        rtg[t] = total
-    return rtg
+    advantages = torch.zeros_like(delta)
+    adv = 0.0
+    N = len(delta)
+    for t in reversed(range(0, N)):
+        adv = GAMMA * TAU * adv + delta[t]
+        advantages[t] = adv
+
+    return td_target, normalize(advantages)
 
 # Normalize tensor by its mean and std
 def normalize(t):
