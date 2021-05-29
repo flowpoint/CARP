@@ -21,14 +21,11 @@ class TextGenPPO(nn.Module):
         act_probs = self.actor(x, return_dict = False, return_pt = True)[0]
         value = self.critic(x, return_dict = False, return_pt = True)[0]
         value = self.critic_fc(value)
+        
+        pi = Categorical(act_probs)
+        token = pi.sample()
 
-        return act_probs, value
-
-    # Use policy to generate tokens
-    def generate(self, x):
-        act_probs = self.actor(x, return_dict = False, return_pt = True)[0]
-        dist = Categorical(act_probs)
-        return dist.sample()
+        return pi, value, token
 
 class BaseLinePPO(nn.Module):
     def __init__(self, state_dim, action_dim):
