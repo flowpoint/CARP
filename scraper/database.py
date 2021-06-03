@@ -44,7 +44,7 @@ def create_story_metadata_table(group_name):
         psql = conn.cursor()
 
         psql.execute('CREATE TABLE IF NOT EXISTS ' + group_name + ' ( \
-            submission_id bigint PRIMARY KEY, \
+            submission_id bigserial PRIMARY KEY, \
             author varchar, \
             author_link varchar, \
             story_title varchar, \
@@ -66,29 +66,41 @@ def create_story_metadata_table(group_name):
             psql.close()
             print('Database connection closed.')
 
-def insert_story_metadata():
+def insert_story_metadata(table_name, metadata):
     try:
         params = config()
         print('Connecting to the PostgreSQL database...')
         conn = psycopg2.connect(**params)
         psql = conn.cursor()
 
-        """
-        psql.execute('CREATE TABLE IF NOT EXISTS ' + group_name + ' ( \
-            submission_id bigint PRIMARY KEY, \
-            author varchar, \
-            author_link varchar, \
-            story_title varchar, \
-            story_link varchar, \
-            word_count varchar, \
-            genre varchar, \
-            crit_count varchar, \
-            author_notes varchar, \
-            story_text varchar, \
-            is_processed boolean \
-        )')
+        query_string = "INSERT INTO " + table_name + " VALUES "
+        count = 1
+        max_count = len(metadata)
+        #for m in metadata:
+        m = metadata[0]
+        query_string += "(" + \
+            m.story_id + ", " + \
+            "$$" + str(m.story_title) + "$$, " + \
+            "$$" + str(m.story_link) + "$$, " + \
+            "$$" + str(m.author) + "$$, " + \
+            "$$" + str(m.author_link) + "$$, " + \
+            "$$" + str(m.word_count) + "$$, " + \
+            "$$" + str(m.genre) + "$$, " + \
+            "$$" + str(m.crit_count) + "$$, " + \
+            "$$" + str(m.author_notes) + "$$, " + \
+            "$$" + str(m.story_text) + "$$, " + \
+            "FALSE" + \
+        ")"
+        #    if count == max_count:
+        #        query_string += ";"
+        #    else:
+        #        query_string += ", "
+        #    count += 1
+
+        print(query_string)
+
+        psql.execute(query_string)
         conn.commit()
-        """
 
     except (Exception, psycopg2.DatabaseError) as error:
         print(error)

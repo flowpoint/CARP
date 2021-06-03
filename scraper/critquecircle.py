@@ -4,6 +4,9 @@ from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import NoSuchElementException
 
+from sys import platform
+import sys
+
 
 from database import *
 
@@ -38,7 +41,9 @@ cc_options_url = "https://www.critiquecircle.com/queue.asp?action=options"
 # NOTE(JR): Given the naming scheme, I have to assume these ids are
 # extremely liable to be changed. This should be considered fragile
 # These are used to ID tables in the old stories page
+
 newbie_metadata_table = "newbie_queue_metadata"
+"""
 newbie_table_id = "queue_349"
 newbie_block_id = "qd349"
 
@@ -65,6 +70,37 @@ ya_block_id = "qd26"
 suspense_metadata_table = "suspense_metadata"
 suspense_table_id = "queue_540"
 suspense_block_id = "qd540"
+"""
+
+metadata_tables = [
+    "newbie_queue_metadata",
+    "general_metadata",
+    "fantasy_metadata",
+    "scifi_metadata",
+    "romance_metadata",
+    "ya_metadata",
+    "suspense_metadata"
+]
+
+table_ids = [
+    "queue_349",
+    "queue_1",
+    "queue_7",
+    "queue_1247",
+    "queue_8",
+    "queue_26",
+    "queue_540"
+]
+
+block_ids = [
+    "qd349",
+    "qd1",
+    "qd7",
+    "qd1247",
+    "qd8",
+    "qd26",
+    "qd540"
+]
 
 # CSV files do *not* like having line breaks in their stored strings
 # A standard workaround is to replace "\n" with an uncommonly used symbol
@@ -83,6 +119,29 @@ class StoryMetadata:
         self.genre = genre
         self.crit_count = crit_count
 
+class RowStoryMetadata:
+    def __init__(self, story_title, story_link, author, author_link, word_count, genre, crit_count):
+        self.story_title = story_title
+        self.story_link = story_link
+        self.author = author
+        self.author_link = author_link
+        self.word_count = word_count
+        self.genre = genre
+        self.crit_count = crit_count
+
+class FullStoryMetadata:
+    def __init__(self, story_id, story_title, story_link, author, author_link, word_count, genre, crit_count, author_notes, story_text):
+        self.story_id = story_id
+        self.story_title = story_title
+        self.story_link = story_link
+        self.author = author
+        self.author_link = author_link
+        self.word_count = word_count
+        self.genre = genre
+        self.crit_count = crit_count
+        self.author_notes = author_notes
+        self.story_text = story_text
+
 class CritiqueMetadata:
     def __init__(self, story_id, critic_name, critic_link, critique_link, word_count, critique_type):
         self.story_id = story_id
@@ -92,13 +151,13 @@ class CritiqueMetadata:
         self.word_count = word_count
         self.critique_type = critique_type
 
-def login():
+def login(driver):
     # IMPORTANT(JR): please enter your own cc email and password
     # moreover, please do not commit your user/pass to the repo
     user = 'jrsmith17@protonmail.com'
     password = 'Vhnv5o@ExieE8*tqxxtIudJw7fjU'
 
-    driver = get_driver()
+    #driver = get_driver()
 
     driver.get('https://new.critiquecircle.com/login')
 
@@ -112,12 +171,15 @@ def login():
     login_box.click()
 
 
+"""
 def get_next_button(block_id):
     driver = get_driver()
     return driver.find_element_by_css_selector("#" + block_id + " table.FaintBorderBlue td.smalltext:nth-of-type(2) a:nth-last-child(2)")
+"""
+def get_next_button(driver, block_id):
+    return driver.find_element_by_css_selector("#" + block_id + " table.FaintBorderBlue td.smalltext:nth-of-type(2) a:nth-last-child(2)")
 
-
-def gather_per_table_worker(metadata, row):
+def process_metadata_row(metadata, row):
     # Critique circle allows users to lock content away from accounts that haven't reviewed other stories
     # Assuming that our scraper accounts haven't done any actual reviewing, I figured it best to skip
     locked_icons = row.find_elements_by_css_selector('td:nth-child(1) img[src*="images/shield_"]')
@@ -142,43 +204,7 @@ def gather_per_table_worker(metadata, row):
     return "added"
 
 
-def gather_metadata_callback(result):
-    print("call back for gather metadata:",result)
-
-def gather_per_table(table_id, block_id, next_button, pagination_count):
-    driver = get_driver()
-    metadata = list()
-
-    # IMPORTANT(JR): use the pagination_count for dev purposes only
-    # uncomment the second loop to capture the full data set
-    gather_count = 0;
-    #while next_button:
-    while next_button and pagination_count <= 2:
-        print("Gathering on",table_id,"Count:",gather_count)
-        gather_count += 1
-        table = driver.find_element_by_css_selector("#" + table_id)
-
-        pool = mp.Pool()
-        for row in table.find_elements_by_css_selector("tr.or"):
-            pool.apply_async(gather_per_table_worker, args=(metadata, row), callback=gather_metadata_callback)
-        pool.close()
-        pool.join()
-
-        # preparation for next loop iteration
-        if next_button:
-            next_button.click()
-            next_button = get_next_button(block_id)
-            if next_button.text != ">>":
-                break
-            pagination_count += 1
-        else:
-            break
-
-    return metadata
-
-def gather_metadata():
-    # Need to ensure type metadata appears in results table
-    driver = get_driver()
+def gather_metadata(driver, table_name, table_id, block_id):
     driver.get(cc_options_url)
     type_checkbox = driver.find_element_by_css_selector("input#Type")
     if type_checkbox.is_selected() is False:
@@ -188,80 +214,32 @@ def gather_metadata():
     driver.get(cc_older_stories_url)
     metadata = list()
 
-    # ########################################
-    # Newbie Queue
-    # ########################################
-    newbie_next_button = get_next_button(newbie_block_id)
-    newbie_pagination_count = 0
+    next_button = get_next_button(driver, block_id)
+    pagination_count = 0
+    gather_count = 0
 
-    newbie_metadata = gather_per_table(newbie_table_id, newbie_block_id, newbie_next_button, newbie_pagination_count)
-    metadata.extend(newbie_metadata)
+    #metadata = gather_per_table(driver, table_id, block_id, next_button, pagination_count)
+    while next_button and pagination_count <= 0:
+        print("Gathering on",table_id,"Count:",gather_count)
+        gather_count += 1
+        table = driver.find_element_by_css_selector("#" + table_id)
 
-    # IMPORTANT(JR): uncomment this section for a proper run, I left commented out so
-    # that the person using this script could test on their machine quickly before
-    # committing to a full run
-    
-    """
-    # ########################################
-    # General Queue
-    # ########################################
-    general_next_button = get_next_button(general_block_id)
-    general_pagination_count = 0
+        for row in table.find_elements_by_css_selector("tr.or"):
+            process_metadata_row(metadata, row)
 
-    general_metadata = gather_per_table(general_table_id, general_block_id, general_next_button, general_pagination_count)
-    metadata.extend(general_metadata)
-
-    # ########################################
-    # Fantasy Queue
-    # ########################################
-    fantasy_next_button = get_next_button(fantasy_block_id)
-    fantasy_pagination_count = 0
-
-    fantasy_metadata = gather_per_table(fantasy_table_id, fantasy_block_id, fantasy_next_button, fantasy_pagination_count)
-    metadata.extend(fantasy_metadata)
-
-    # ########################################
-    # Scifi Queue
-    # ########################################
-    scifi_next_button = get_next_button(scifi_block_id)
-    scifi_pagination_count = 0
-
-    scifi_metadata = gather_per_table(scifi_table_id, scifi_block_id, scifi_next_button, scifi_pagination_count)
-    metadata.extend(scifi_metadata)
-
-    # ########################################
-    # Romance Queue
-    # ########################################
-    romance_next_button = get_next_button(romance_block_id)
-    romance_pagination_count = 0
-
-    romance_metadata = gather_per_table(romance_table_id, romance_block_id, romance_next_button, romance_pagination_count)
-    metadata.extend(romance_metadata)
-
-    # ########################################
-    # YA Queue
-    # ########################################
-    ya_next_button = get_next_button(ya_block_id)
-    ya_pagination_count = 0
-
-    ya_metadata = gather_per_table(ya_table_id, ya_block_id, ya_next_button, ya_pagination_count)
-    metadata.extend(ya_metadata)
-
-    # ########################################
-    # Suspense Queue
-    # ########################################
-    suspense_next_button = get_next_button(suspense_block_id)
-    suspense_pagination_count = 0
-
-    suspense_metadata = gather_per_table(suspense_table_id, suspense_block_id, suspense_next_button, suspense_pagination_count)
-    metadata.extend(suspense_metadata)
-    """
+        # preparation for next loop iteration
+        if next_button:
+            next_button.click()
+            next_button = get_next_button(driver, block_id)
+            if next_button.text != ">>":
+                break
+            pagination_count += 1
+        else:
+            break
 
     return metadata
 
-def save_metadata(metadata):
-    
-    print("saving")
+
 
 def process_metadata(metadata):
     submission_csv_headers = ['submission_id', 'author', 'author_link', 'story_title',
@@ -303,7 +281,7 @@ def process_metadata(metadata):
                 story_text += "\n"
             story_text = story_text.replace("\n", line_break_replacement).encode('utf-8')
 
-            story_id = str(hash(m.author + m.story_title))
+            story_id = str(hash(m.author + m.story_title) )
 
             sw.writerow([
                 story_id,
@@ -369,7 +347,6 @@ def process_metadata(metadata):
 
 
 def process_critiques(critiques):
-    # critic_link, critique_link, word_count, critique_type
     critique_csv_headers = ['comment_id', 'submission_id', 'critic_name', 'critic_link', 'critique_link', 'word_count', 'critique_type', 'story_target', 'target_comment']
     critique_csv = open('critiquecircle_critiques.csv', 'w', newline='')
     cw = csv.writer(critique_csv)
@@ -408,7 +385,101 @@ def process_critiques(critiques):
     finally:
         critique_csv.close()    
 
+
+
+
+
+
+
+
+
+
+
+def process_row_metadata(driver, metadata):
+    stories = list()
+    #metadata_count = 0
+    for m in metadata:
+        #print("Processing metadata:",metadata_count)
+        #metadata_count += 1
+        driver.get(m.story_link)
+
+        # The forbidden icon appears on 18+ pages, which we're skipping
+        forbidden_icon = driver.find_elements_by_css_selector('img[src*="images/forbidden"]')
+        if len(forbidden_icon) > 0:
+            continue
+
+        author_notes = ""
+        try:
+            author_notes = driver.find_element_by_css_selector(".authornotes").text \
+                .replace("\n", line_break_replacement)
+            #    .replace("\n", line_break_replacement).encode('utf-8')
+        except NoSuchElementException:
+            author_notes = ""
+        story_chunks = driver.find_elements_by_css_selector("#story p")
+        story_text = ""
+        for sc in story_chunks:
+            story_text += sc.text.strip()
+            story_text += "\n"
+        #story_text = story_text.replace("\n", line_break_replacement).encode('utf-8')
+        story_text = story_text.replace("\n", line_break_replacement)
+
+        story_id = str(hash(m.author + m.story_title) + sys.maxsize + 1)
+    
+        story = FullStoryMetadata(
+            story_id,
+            m.author,
+            m.author_link,
+            m.story_title,
+            m.story_link,
+            m.word_count,
+            m.genre,
+            m.crit_count,
+            author_notes,
+            story_text
+        )
+        stories.append(story)
+
+    return stories
+
+def save_story_metadata(metadata):
+    print("saving story metadata:",len(metadata))
+
+
+def run_scraper_manager(table_name, table_id, block_id):
+    options = webdriver.ChromeOptions()
+    options.add_argument("--disable-extensions")
+    options.add_argument("--disable-gpu")
+    options.add_argument("--headless")
+    if platform == "linux" or platform == "linux2":
+        options.add_argument("--no-sandbox")
+    
+    driver = webdriver.Chrome(ChromeDriverManager().install(), chrome_options=options)
+
+    # Per Table Scraping Options
+    login(driver)
+    row_metadata = gather_metadata(driver, table_name, table_id, block_id)
+    full_metadata = process_row_metadata(driver, row_metadata)
+    #save_story_metadata(full_metadata)
+    insert_story_metadata(table_name, full_metadata)
+
+    driver.quit()
+
+def run_threaded_scraper():
+    processes = []
+    #for i in range(7):
+    for i in range(1):
+        p = mp.Process(target=run_scraper_manager, args=(metadata_tables[i], table_ids[i], block_ids[i]))
+        processes.append(p)
+        p.start()
+
+    for p in processes:
+        p.join()
+
 def main():
+    create_story_metadata_table(newbie_metadata_table)
+    run_threaded_scraper()
+    ###########
+    """
     run_connection_health_check()
     create_story_metadata_table(newbie_metadata_table)
     create_story_metadata_table(general_metadata_table)
@@ -420,10 +491,9 @@ def main():
     
     login()
     metadata = gather_metadata()
-    save_metadata(metadata)
     #critiques = process_metadata(metadata)
     #process_critiques(critiques)
-
+    """
 
 if __name__ == "__main__":
     main()
