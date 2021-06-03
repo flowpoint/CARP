@@ -4,17 +4,31 @@ from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import NoSuchElementException
 
+
+from database import *
+
+import multiprocessing as mp
+
+import threading
+
 import csv
 
+threadLocal = threading.local()
 
-# IMPORTANT(JR): note the headless option, comment that out for debugging purposes
-# but a proper run is long and going to be slower without a headless browser
-chrome_options = Options()
-#chrome_options.add_argument("--disable-extensions")
-#chrome_options.add_argument("--disable-gpu")
-#chrome_options.add_argument("--no-sandbox") # linux only
-#chrome_options.add_argument("--headless")
-driver = webdriver.Chrome(ChromeDriverManager().install(), options=chrome_options)
+def get_driver():
+    driver = getattr(threadLocal, 'driver', None)
+    if driver is None:
+        chromeOptions = webdriver.ChromeOptions()
+        #chrome_options.add_argument("--disable-extensions")
+        #chrome_options.add_argument("--disable-gpu")
+        #chrome_options.add_argument("--no-sandbox") # linux only
+        chromeOptions.add_argument("--headless")
+        driver = webdriver.Chrome(ChromeDriverManager().install(), chrome_options=chromeOptions)
+        setattr(threadLocal, 'driver', driver)
+    
+    return driver
+
+
 
 cc_up_for_review_url = "https://www.critiquecircle.com/queue.asp?status=1"
 cc_upcoming_url = "https://www.critiquecircle.com/queue.asp?status=2"
@@ -24,24 +38,31 @@ cc_options_url = "https://www.critiquecircle.com/queue.asp?action=options"
 # NOTE(JR): Given the naming scheme, I have to assume these ids are
 # extremely liable to be changed. This should be considered fragile
 # These are used to ID tables in the old stories page
+newbie_metadata_table = "newbie_queue_metadata"
 newbie_table_id = "queue_349"
 newbie_block_id = "qd349"
 
+general_metadata_table = "general_metadata"
 general_table_id = "queue_1"
 general_block_id = "qd1"
 
+fantasy_metadata_table = "fantasy_metadata"
 fantasy_table_id = "queue_7"
 fantasy_block_id = "qd7"
 
+scifi_metadata_table = "scifi_metadata"
 scifi_table_id = "queue_1247"
 scifi_block_id = "qd1247"
 
+romance_metadata_table = "romance_metadata"
 romance_table_id = "queue_8"
 romance_block_id = "qd8"
 
+ya_metadata_table = "ya_metadata"
 ya_table_id = "queue_26"
 ya_block_id = "qd26"
 
+suspense_metadata_table = "suspense_metadata"
 suspense_table_id = "queue_540"
 suspense_block_id = "qd540"
 
@@ -71,12 +92,13 @@ class CritiqueMetadata:
         self.word_count = word_count
         self.critique_type = critique_type
 
-
 def login():
     # IMPORTANT(JR): please enter your own cc email and password
     # moreover, please do not commit your user/pass to the repo
-    user = ''
-    password = ''
+    user = 'jrsmith17@protonmail.com'
+    password = 'Vhnv5o@ExieE8*tqxxtIudJw7fjU'
+
+    driver = get_driver()
 
     driver.get('https://new.critiquecircle.com/login')
 
@@ -91,44 +113,63 @@ def login():
 
 
 def get_next_button(block_id):
+    driver = get_driver()
     return driver.find_element_by_css_selector("#" + block_id + " table.FaintBorderBlue td.smalltext:nth-of-type(2) a:nth-last-child(2)")
 
 
+def gather_per_table_worker(metadata, row):
+    # Critique circle allows users to lock content away from accounts that haven't reviewed other stories
+    # Assuming that our scraper accounts haven't done any actual reviewing, I figured it best to skip
+    locked_icons = row.find_elements_by_css_selector('td:nth-child(1) img[src*="images/shield_"]')
+    if len(locked_icons) > 0:
+        return "skipped"
+
+    story_title = row.find_element_by_css_selector("td:nth-child(1)").text
+    story_link = row.find_element_by_css_selector("td:nth-child(1) a").get_attribute('href')
+
+    author = row.find_element_by_css_selector("td:nth-child(2) a.hoverlink span").text
+    author_link = row.find_element_by_css_selector("td:nth-child(2) a.hoverlink").get_attribute('href')
+
+    word_count = int(row.find_element_by_css_selector("td:nth-child(4) nobr").text.replace(",", ""))
+
+    genre = row.find_element_by_css_selector("td:nth-child(5) nobr").text
+
+    crit_count = int(row.find_element_by_css_selector("td:nth-child(6) nobr").text)
+
+    sm = StoryMetadata(story_title, story_link, author, author_link, word_count, genre, crit_count)
+    metadata.append(sm)
+
+    return "added"
+
+
+def gather_metadata_callback(result):
+    print("call back for gather metadata:",result)
+
 def gather_per_table(table_id, block_id, next_button, pagination_count):
+    driver = get_driver()
     metadata = list()
 
     # IMPORTANT(JR): use the pagination_count for dev purposes only
     # uncomment the second loop to capture the full data set
-    while next_button and pagination_count <= 2:
+    gather_count = 0;
     #while next_button:
+    while next_button and pagination_count <= 2:
+        print("Gathering on",table_id,"Count:",gather_count)
+        gather_count += 1
         table = driver.find_element_by_css_selector("#" + table_id)
 
+        pool = mp.Pool()
         for row in table.find_elements_by_css_selector("tr.or"):
-            # Critique circle allows users to lock content away from accounts that haven't reviewed other stories
-            # Assuming that our scraper accounts haven't done any actual reviewing, I figured it best to skip
-            locked_icons = row.find_elements_by_css_selector('td:nth-child(1) img[src*="images/shield_"]')
-            if len(locked_icons) > 0:
-                continue
-
-            story_title = row.find_element_by_css_selector("td:nth-child(1)").text
-            story_link = row.find_element_by_css_selector("td:nth-child(1) a").get_attribute('href')
-
-            author = row.find_element_by_css_selector("td:nth-child(2) a.hoverlink span").text
-            author_link = row.find_element_by_css_selector("td:nth-child(2) a.hoverlink").get_attribute('href')
-
-            word_count = int(row.find_element_by_css_selector("td:nth-child(4) nobr").text.replace(",", ""))
-
-            genre = row.find_element_by_css_selector("td:nth-child(5) nobr").text
-
-            crit_count = int(row.find_element_by_css_selector("td:nth-child(6) nobr").text)
-
-            sm = StoryMetadata(story_title, story_link, author, author_link, word_count, genre, crit_count)
-            metadata.append(sm)
+            pool.apply_async(gather_per_table_worker, args=(metadata, row), callback=gather_metadata_callback)
+        pool.close()
+        pool.join()
 
         # preparation for next loop iteration
         if next_button:
             next_button.click()
             next_button = get_next_button(block_id)
+            if next_button.text != ">>":
+                break
             pagination_count += 1
         else:
             break
@@ -137,6 +178,7 @@ def gather_per_table(table_id, block_id, next_button, pagination_count):
 
 def gather_metadata():
     # Need to ensure type metadata appears in results table
+    driver = get_driver()
     driver.get(cc_options_url)
     type_checkbox = driver.find_element_by_css_selector("input#Type")
     if type_checkbox.is_selected() is False:
@@ -158,6 +200,7 @@ def gather_metadata():
     # IMPORTANT(JR): uncomment this section for a proper run, I left commented out so
     # that the person using this script could test on their machine quickly before
     # committing to a full run
+    
     """
     # ########################################
     # General Queue
@@ -216,6 +259,9 @@ def gather_metadata():
 
     return metadata
 
+def save_metadata(metadata):
+    
+    print("saving")
 
 def process_metadata(metadata):
     submission_csv_headers = ['submission_id', 'author', 'author_link', 'story_title',
@@ -229,7 +275,11 @@ def process_metadata(metadata):
     critiques = list()
 
     try:
+        driver = get_driver()
+        metadata_count = 0
         for m in metadata:
+            print("Processing metadata:",metadata_count)
+            metadata_count += 1
             # ###############################################
             # Main Story Submission File
             # ###############################################
@@ -326,7 +376,11 @@ def process_critiques(critiques):
     cw.writerow(critique_csv_headers)
 
     try:
+        driver = get_driver()
+        critique_count = 0
         for critique in critiques:
+            print("Processing critique:",critique_count)
+            critique_count += 1
             driver.get(critique.critique_link)
 
             comment_count = 0
@@ -355,14 +409,20 @@ def process_critiques(critiques):
         critique_csv.close()    
 
 def main():
+    run_connection_health_check()
+    create_story_metadata_table(newbie_metadata_table)
+    create_story_metadata_table(general_metadata_table)
+    create_story_metadata_table(fantasy_metadata_table)
+    create_story_metadata_table(scifi_metadata_table)
+    create_story_metadata_table(romance_metadata_table)
+    create_story_metadata_table(ya_metadata_table)
+    create_story_metadata_table(suspense_metadata_table)
+    
     login()
     metadata = gather_metadata()
-    critiques = process_metadata(metadata)
-    process_critiques(critiques)
-
-    # IMPORTANT(JR): This is purposefully commented out during dev
-    # During a proper run, please uncomment
-    # driver.quit()
+    save_metadata(metadata)
+    #critiques = process_metadata(metadata)
+    #process_critiques(critiques)
 
 
 if __name__ == "__main__":
