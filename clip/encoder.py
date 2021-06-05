@@ -8,16 +8,11 @@ class TextEncoder(nn.Module):
         super().__init__()
 
         self.model = DebertaV2Model.from_pretrained('microsoft/deberta-v2-xlarge')
-        self.tokenizer = DebertaV2Tokenizer.from_pretrained('microsoft/deberta-v2-xlarge')
         self.model.to('cuda')
 
-    def tokenize(self, x):
-        y = self.tokenizer.encode(x)
-        y = torch.tensor([y], device = 'cuda')
-        return y
-
     def forward(self, x):
-        out = self.model(x, return_dict = False, output_hidden_states = True)
-        hidden = out[2]
-        return hidden[-2] # 2nd Last hidden state
+        out = self.model(x['input_ids'], x['attention_mask'], output_hidden_states = True)
+        
+        hidden = out[1]
+        return hidden[-2].to('cuda') # 2nd Last hidden state
 

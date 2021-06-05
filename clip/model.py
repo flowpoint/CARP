@@ -15,7 +15,7 @@ class ContrastiveModel(nn.Module):
         self.projA = nn.Linear(GPT_OUT, LATENT_DIM, bias = False)
         self.projB = nn.Linear(GPT_OUT, LATENT_DIM, bias = False)
 
-        self.logit_scale = nn.Parameter(torch.ones[]) * np.log(1 / 0.07)
+        self.logit_scale = nn.Parameter(torch.ones([])) * np.log(1 / 0.07)
 
     def encodeX(self, x):
         return self.projA(self.encA(x))
@@ -35,7 +35,7 @@ class ContrastiveModel(nn.Module):
 
         return logits
 
-    def forward(self, x, y)
+    def forward(self, x, y):
         x = self.encodeX(x)
         y = self.encodeY(y)
         return self.getLogits(x, y)

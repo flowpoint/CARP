@@ -1,5 +1,8 @@
+
+EPOCHS = 10
 BATCH_SIZE = 32
 MICROBATCH_SIZE = 4 # If batch size is too much for mem
+
 # Size of encodings
 LATENT_DIM = 2048
 
