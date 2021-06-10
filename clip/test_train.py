@@ -5,6 +5,8 @@ from get_wp_testing import get_dataset
 from transformers import DebertaV2Tokenizer
 
 model = ContrastiveModel(TextEncoder(), TextEncoder())
+model.cuda()
+
 dataset = get_dataset()
 tokenizer =  DebertaV2Tokenizer.from_pretrained('microsoft/deberta-v2-xlarge')
 

@@ -17,21 +17,26 @@ class ContrastiveModel(nn.Module):
 
         self.logit_scale = nn.Parameter(torch.ones([])) * np.log(1 / 0.07)
 
-    def encodeX(self, x):
-        return self.projA(self.encA(x))
+    def encodeX(self, x, masks = None):
+        x = self.encA(x, masks)
+        return self.projA(x)
 
-    def encodeY(self, y):
-        return self.projB(self.encB(y))
+    def encodeY(self, y, masks = None):
+        y = self.encB(y, masks)
+        return self.projB(y)
 
     # x, y are assumed encoding/embeddings here
     def getLogits(self, x, y):
+        print("Logit input shapes:")
+        print(x.shape)
+        print(y.shape)
         # normalize
         x /= x.norm(dim = -1, keepdim = True)
         y /= y.norm(dim = -1, keepdim = True)
 
         # cos sim on log scale
         logit_scale = self.logit_scale.exp()
-        logits = logit_scale * x_feat @ y_feat.t()
+        logits = logit_scale * x @ y.t()
 
         return logits
 
