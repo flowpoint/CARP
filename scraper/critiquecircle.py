@@ -126,7 +126,8 @@ def gather_metadata(driver, table_name, table_id, block_id):
     next_button = get_next_button(driver, block_id)
     pagination_count = 0
 
-    while next_button and pagination_count <= 0:
+    #while next_button and pagination_count <= 0:
+    while next_button:
         table = driver.find_element_by_css_selector("#" + table_id)
 
         for row in table.find_elements_by_css_selector("tr.or"):
@@ -207,8 +208,8 @@ def run_metadata_scraper_manager(table_name, table_id, block_id):
 
 def run_threaded_metadata_scraper():
     processes = []
-    #for i in range(len(metadata_tables)):
-    for i in range(1):
+    for i in range(len(metadata_tables)):
+        #for i in range(1):
         p = mp.Process(target=run_metadata_scraper_manager, args=(metadata_tables[i], table_ids[i], block_ids[i]))
         processes.append(p)
         p.start()
@@ -312,8 +313,8 @@ def run_critique_scraper_manager(table_name):
 
 def run_threaded_critique_scraper():
     processes = []
-    #for i in range(len(metadata_tables)):
-    for i in range(1):
+    for i in range(len(metadata_tables)):
+        #for i in range(1):
         print(metadata_tables[i])
         p = mp.Process(target=run_critique_scraper_manager, args=(metadata_tables[i],) )
         processes.append(p)
