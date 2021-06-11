@@ -19,7 +19,8 @@ import csv
 
 import argparse
 parser = argparse.ArgumentParser()
-parser.add_argument("-sm", "--skip-metadata", action='store_true', help="Skip metadata")
+parser.add_argument("-sm", "--skip-metadata", action='store_true', help="Skip metadata scraping")
+parser.add_argument("-sc", "--skip-critique", action='store_true', help="Skip critique scraping")
 
 
 cc_up_for_review_url = "https://www.critiquecircle.com/queue.asp?status=1"
@@ -65,8 +66,6 @@ block_ids = [
 # I picked the Ϯ (coptic capital letter dei) as it seemed unlikely to
 # appear in our data set
 line_break_replacement = "\u03EE"
-
-
 
 
 def login(driver):
@@ -337,16 +336,16 @@ def serialize_stories_to_csv():
             metadata = get_stored_metadata(table_name, status="true")
             for m in metadata:
                 sw.writerow([
-                    str(m.story_id).encode('utf-8'),
-                    m.author.encode('utf-8'),
-                    m.author_link.encode('utf-8'),
-                    m.story_title.encode('utf-8'),
-                    m.story_link.encode('utf-8'),
-                    m.word_count.encode('utf-8'),
-                    m.genre.encode('utf-8'),
-                    m.crit_count.encode('utf-8'),
-                    m.author_notes.encode('utf-8'),
-                    m.story_text.encode('utf-8')
+                    str(m.story_id).replace("\n", line_break_replacement).encode('utf-8'),
+                    m.author.replace("\n", line_break_replacement).encode('utf-8'),
+                    m.author_link.replace("\n", line_break_replacement).encode('utf-8'),
+                    m.story_title.replace("\n", line_break_replacement).encode('utf-8'),
+                    m.story_link.replace("\n", line_break_replacement).encode('utf-8'),
+                    m.word_count.replace("\n", line_break_replacement).encode('utf-8'),
+                    m.genre.replace("\n", line_break_replacement).encode('utf-8'),
+                    m.crit_count.replace("\n", line_break_replacement).encode('utf-8'),
+                    m.author_notes.replace("\n", line_break_replacement).encode('utf-8'),
+                    m.story_text.replace("\n", line_break_replacement).encode('utf-8')
                 ])
     finally:
         submission_csv.close()
@@ -361,15 +360,15 @@ def serialize_critiques_to_csv():
         critiques = get_stored_critiques()
         for c in critiques:
             cw.writerow([
-                str(c.critique_id).encode('utf-8'),
-                str(c.submission_id).encode('utf-8'),
-                c.critic_name.encode('utf-8'),
-                c.critic_link.encode('utf-8'),
-                c.critique_link.encode('utf-8'),
-                c.word_count.encode('utf-8'),
-                c.critique_type.encode('utf-8'),
-                c.story_target.encode('utf-8'),
-                c.target_comment.encode('utf-8')
+                str(c.critique_id).replace("\n", line_break_replacement).encode('utf-8'),
+                str(c.submission_id).replace("\n", line_break_replacement).encode('utf-8'),
+                c.critic_name.replace("\n", line_break_replacement).encode('utf-8'),
+                c.critic_link.replace("\n", line_break_replacement).encode('utf-8'),
+                c.critique_link.replace("\n", line_break_replacement).encode('utf-8'),
+                c.word_count.replace("\n", line_break_replacement).encode('utf-8'),
+                c.critique_type.replace("\n", line_break_replacement).encode('utf-8'),
+                c.story_target.replace("\n", line_break_replacement).encode('utf-8'),
+                c.target_comment.replace("\n", line_break_replacement).encode('utf-8')
             ])
     finally:
         critique_csv.close()
@@ -384,18 +383,11 @@ def main():
     if args.skip_metadata is not True:
         run_threaded_metadata_scraper()
 
-    run_threaded_critique_scraper()
+    if args.skip_critique is not True:
+        run_threaded_critique_scraper()
 
     serialize_stories_to_csv()
     serialize_critiques_to_csv()
-
-    ###########
-    """
-    
-    metadata = gather_metadata()
-    #critiques = process_metadata(metadata)
-    #process_critiques(critiques)
-    """
 
 if __name__ == "__main__":
     main()
