@@ -12,3 +12,10 @@ def generate_indices(total_size, batch_size, shuffle = True):
     inds = torch.randperm(total_size) if shuffle else torch.arange(total_size)
     return chunk(inds, batch_size)
 
+# Get output dim of TextEncoder
+def get_d_model(enc):
+	x = ["hello world", "hi world", "bla bla"]
+	y = enc(x, tokenize = True)
+	assert y.shape[0] == 3 
+
+	return y.shape[1]	

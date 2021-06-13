@@ -1,15 +1,17 @@
 from torch import nn
 import torch
 
-from transformers import DebertaV2Tokenizer, DebertaV2Model
+from constants import *
+import util
 
 class TextEncoder(nn.Module):
     def __init__(self):
         super().__init__()
 
-        self.model = DebertaV2Model.from_pretrained('microsoft/deberta-v2-xlarge').cuda()
-        
-        self.tokenizer = DebertaV2Tokenizer.from_pretrained('microsoft/deberta-v2-xlarge')
+        self.model = MODEL.from_pretrained(MODEL_PATH).cuda()
+        self.tokenizer = TOKENIZER.from_pretrained(MODEL_PATH)
+
+        self.d_model = util.get_d_model(self)
 
     def add_cls(self, string_batch):
         return [s + "[CLS]" for s in string_batch]

@@ -12,8 +12,8 @@ class ContrastiveModel(nn.Module):
         self.encA = encA
         self.encB = encB
 
-        self.projA = nn.Linear(GPT_OUT, LATENT_DIM, bias = False)
-        self.projB = nn.Linear(GPT_OUT, LATENT_DIM, bias = False)
+        self.projA = nn.Linear(self.encA.d_model, LATENT_DIM, bias = False)
+        self.projB = nn.Linear(self.encB.d_model, LATENT_DIM, bias = False)
 
         self.logit_scale = nn.Parameter(torch.ones([])) * np.log(1 / 0.07)
 
@@ -31,12 +31,12 @@ class ContrastiveModel(nn.Module):
         print(x.shape)
         print(y.shape)
         # normalize
-        x /= x.norm(dim = -1, keepdim = True)
-        y /= y.norm(dim = -1, keepdim = True)
+        x = F.normalize(x)
+        y = F.normalize(y)
 
         # cos sim on log scale
         logit_scale = self.logit_scale.exp()
-        logits = logit_scale * x @ y.t()
+        logits = logit_scale * x @ y.T
 
         return logits
 
