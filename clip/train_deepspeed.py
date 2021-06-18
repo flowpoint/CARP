@@ -3,6 +3,8 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+LEARNING_RATE = 5e-5
+
 # Calculate contrastive loss between two encodings
 class CLIPLoss(nn.Module):
     def __init__(self):

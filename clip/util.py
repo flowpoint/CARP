@@ -1,5 +1,6 @@
 import torch
 import math
+import deepspeed
 
 # Break list or tensor into chunks
 def chunk(L, sep):
