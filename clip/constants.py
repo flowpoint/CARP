@@ -13,4 +13,4 @@ TOKENIZER = transformers.ElectraTokenizerFast
 MODEL_PATH = "google/electra-large-discriminator"
 
 # training
-LEARNING_RATE = 1e-4
+LEARNING_RATE = 5e-5

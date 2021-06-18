@@ -2,8 +2,11 @@ import deepspeed
 import torch
 import torch.nn.functional as F
 from torch import nn
+from constants import *
+import numpy as np
+import math
 
-LEARNING_RATE = 5e-5
+from util import chunk, generate_indices
 
 # Calculate contrastive loss between two encodings
 class CLIPLoss(nn.Module):
