@@ -19,3 +19,15 @@ def get_d_model(enc):
 	assert y.shape[0] == 3 
 
 	return y.shape[1]	
+
+import argparse
+def get_arguments():
+    parser = argparse.ArgumentParser(description = "CARP")
+
+    parser.add_argument('--backend', type=str, default = 'nccl')
+    parser.add_argument('--local_rank', type=int, default=-1)
+    parser = deepspeed.add_config_arguments(parser)
+
+    args = parser.parse_args()
+
+    return args

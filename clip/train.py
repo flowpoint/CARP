@@ -8,10 +8,11 @@ import math
 from constants import *
 from util import chunk, generate_indices
 
+# Calculate contrastive loss between two encodings
 class CLIPLoss(nn.Module):
     def __init__(self):
         super().__init__()
-        self.logit_scale = nn.Parameter(torch.ones([])) * np.log(1 / 0.07)
+        self.logit_scale = nn.Parameter(torch.ones([]) * np.log(1/0.07))
 
     def forward(self, x_embed, y_embed):
         n = x_embed.shape[0]
@@ -28,8 +29,11 @@ class CLIPLoss(nn.Module):
 
         return (loss_i + loss_t) / 2, (acc_i + acc_t) / n / 2
 
-# NOTE: for time being dataset is just list of pairs, should prob change later
-def train(model, tokenizer, dataset):
+# Dataset assumed to be list of pairs on memory
+def train(model, dataset):
+
+    # Tokenizes string batch using encoder tokenizer
+    # Also adds CLS tokens to end
     def tok(string_batch):
         for i, _ in enumerate(string_batch):
             if len(string_batch[i]) > N_CTX:
@@ -37,6 +41,8 @@ def train(model, tokenizer, dataset):
 
         return model.encA.tok(string_batch)
 
+    # From indices into dataset, gets batch in form of:
+    # (passage tokens, passage masks, review tokens, review masks)
     def get_batch_tokens(inds):
         batch = [dataset[ind] for ind in inds]
         pass_batch = [pair[0] for pair in batch]
@@ -53,47 +59,55 @@ def train(model, tokenizer, dataset):
 
     opt = torch.optim.AdamW(model.parameters(), lr = LEARNING_RATE, weight_decay = 0.01)
     clip_loss = CLIPLoss()
-
     model.train() 
-
     dataset_size = len(dataset)
+    
     for epoch in range(EPOCHS):
         batches_inds = generate_indices(dataset_size, BATCH_SIZE)
         for batch_inds in batches_inds:
+            batch_loss = 0
             pass_tokens, pass_masks, rev_tokens, rev_masks = get_batch_tokens(batch_inds)
-
             microbatch_inds = generate_indices(len(batch_inds), MICROBATCH_SIZE, shuffle = False)
-            torch.autograd.set_detect_anomaly(True)
+
+            # Split tokens and masks into these microbatches
+            pass_mbs = [(pass_tokens[ind], pass_masks[ind]) for ind in microbatch_inds]
+            rev_mbs = [(rev_tokens[ind], rev_masks[ind]) for ind in microbatch_inds]
+
+            # Initially get all encodings without grad
             with torch.no_grad():
-                pass_encs = [model.encodeX(pass_tokens[ind], pass_masks[ind])
-                        for ind in microbatch_inds]
+                pass_encs = [model.encodeX(tokens, masks)
+                        for (tokens, masks) in pass_mbs]
                 
-                rev_encs = [model.encodeY(rev_tokens[ind], rev_masks[ind])
-                        for ind in microbatch_inds]
+                rev_encs = [model.encodeY(tokens, masks)
+                        for (tokens, masks) in rev_mbs]
                 
                 loss, acc = clip_loss(torch.cat(pass_encs), torch.cat(rev_encs))
             
             opt.zero_grad()
-            
-            for index, mb in enumerate(microbatch_inds):
-                print(index)
+
+            # Encode passages in microbatches (with grad)
+            for index, (tokens, masks) in enumerate(pass_mbs):
+                torch.autograd.set_detect_anomaly(True)
+                
                 pass_tmp = pass_encs.copy()
-                pass_tmp[index] = model.encodeX(pass_tokens[mb], pass_masks[mb])
+                pass_tmp[index] = model.encodeX(tokens, masks)
+                
                 loss, _ = clip_loss(torch.cat(pass_tmp), torch.cat(rev_encs))
+                batch_loss += loss.item()
                 loss.backward()
-            """
-            for index, mb in enumerate(microbatch_inds):
+
+            # Encode reviews in microbatches (with grad)
+            for index, (tokens, masks) in enumerate(rev_mbs):
                 rev_tmp = rev_encs.copy()
-                rev_tmp[index] = model.encodeY(rev_tokens[mb], rev_masks[mb])
-                loss, _ = clip_loss(model.getLogits(torch.cat(pass_encs),
-                    torch.cat(rev_tmp)))
+                rev_tmp[index] = model.encodeY(tokens, masks)
+                loss, _ = clip_loss(torch.cat(pass_encs), torch.cat(rev_tmp))
+                batch_loss += loss.item()
                 loss.backward()
-            """
 
             opt.step()
 
-            print("done!")
-            exit()
+            print("EPOCH [" + str(epoch) + "/" + str(EPOCHS) +
+                  "] Batch Loss: " + str(round(batch_loss, 3)))
 
 
-
+            
