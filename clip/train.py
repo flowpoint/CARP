@@ -1,12 +1,13 @@
 import torch
 import torch.nn.functional as F
 from torch import nn
+from torch.optim.lr_scheduler import LambdaLR
 import numpy as np
-
 import math
+import wandb
 
 from constants import *
-from util import chunk, generate_indices
+from util import chunk, generate_indices, get_scheduling_func
 
 # Calculate contrastive loss between two encodings
 class CLIPLoss(nn.Module):
@@ -30,8 +31,7 @@ class CLIPLoss(nn.Module):
         return (loss_i + loss_t) / 2, (acc_i + acc_t) / n / 2
 
 # Dataset assumed to be list of pairs on memory
-def train(model, dataset):
-
+def train(model, dataset, evalset):
     # Tokenizes string batch using encoder tokenizer
     # Also adds CLS tokens to end
     def tok(string_batch):
@@ -43,7 +43,7 @@ def train(model, dataset):
 
     # From indices into dataset, gets batch in form of:
     # (passage tokens, passage masks, review tokens, review masks)
-    def get_batch_tokens(inds):
+    def get_batch_tokens(dataset, inds):
         batch = [dataset[ind] for ind in inds]
         pass_batch = [pair[0] for pair in batch]
         rev_batch = [pair[1] for pair in batch]
@@ -57,16 +57,36 @@ def train(model, dataset):
 
         return pass_tokens, pass_masks, rev_tokens, rev_masks
 
-    opt = torch.optim.AdamW(model.parameters(), lr = LEARNING_RATE, weight_decay = 0.01)
+    # Get encodings and validates them (gets loss and accuracy) without grad
+    def encode_and_val(pass_mbs, rev_mbs):
+        with torch.no_grad():
+            pass_encs = [model.encodeX(tokens, masks)
+                for (tokens, masks) in pass_mbs]
+            
+            rev_encs = [model.encodeY(tokens, masks)
+                for (tokens, masks) in rev_mbs]
+        
+            test_loss, test_acc = clip_loss(torch.cat(pass_encs), torch.cat(rev_encs))
+        return pass_encs, rev_encs, test_loss, test_acc
+
+    opt = torch.optim.AdamW(model.parameters(), lr = LEARNING_RATE_INIT, weight_decay = 0)
+    scheduler = LambdaLR(opt, get_scheduling_func())
+    if LOAD_CHECKPOINT:
+        scheduler.load_state_dict(torch.load("./schedule.pt"))
+        opt.load_state_dict(torch.load("./opt.pt"))
     clip_loss = CLIPLoss()
     model.train() 
+    
     dataset_size = len(dataset)
+    evalset_size = len(evalset)
+
+    iteration = 0
     
     for epoch in range(EPOCHS):
         batches_inds = generate_indices(dataset_size, BATCH_SIZE)
         for batch_inds in batches_inds:
             batch_loss = 0
-            pass_tokens, pass_masks, rev_tokens, rev_masks = get_batch_tokens(batch_inds)
+            pass_tokens, pass_masks, rev_tokens, rev_masks = get_batch_tokens(dataset, batch_inds)
             microbatch_inds = generate_indices(len(batch_inds), MICROBATCH_SIZE, shuffle = False)
 
             # Split tokens and masks into these microbatches
@@ -74,15 +94,8 @@ def train(model, dataset):
             rev_mbs = [(rev_tokens[ind], rev_masks[ind]) for ind in microbatch_inds]
 
             # Initially get all encodings without grad
-            with torch.no_grad():
-                pass_encs = [model.encodeX(tokens, masks)
-                        for (tokens, masks) in pass_mbs]
-                
-                rev_encs = [model.encodeY(tokens, masks)
-                        for (tokens, masks) in rev_mbs]
-                
-                loss, acc = clip_loss(torch.cat(pass_encs), torch.cat(rev_encs))
-            
+            pass_encs, rev_encs, test_loss, test_acc = encode_and_val(pass_mbs, rev_mbs)
+
             opt.zero_grad()
 
             # Encode passages in microbatches (with grad)
@@ -106,8 +119,60 @@ def train(model, dataset):
 
             opt.step()
 
-            print("EPOCH [" + str(epoch) + "/" + str(EPOCHS) +
+            # Logging (in terminal and on WANDB)
+            if iteration % LOG_INTERVAL == 0:
+                print("EPOCH [" + str(epoch) + "/" + str(EPOCHS) +
                   "] Batch Loss: " + str(round(batch_loss, 3)))
+                wandb.log({"Loss/train": batch_loss, "Loss/test": test_loss,
+                            "Acc/test": test_acc})
+            # Checkpoint model and scheduler
+            if iteration % CHECKPOINT_INTERVAL == 0:
+                print("SAVING...")
+                torch.save(model.state_dict(), "./checkpoints/" + str(iteration) \
+                           + "params.pt")
+                torch.save(model.state_dict(), "./params.pt")
+                torch.save(scheduler.state_dict(), "./schedule.pt")
+                torch.save(opt.state_dict(), "./opt.pt")
+            # Run on eval set
+            if iteration % VALIDATE_INTERVAL == 0:
+                print("VALIDATING...")
+                batches_inds = generate_indices(evalset_size, BATCH_SIZE)
+                val_losses, val_accs = [], []
+                for batch_inds in batches_inds:
+                    pass_t, pass_m, rev_t, rev_m = get_batch_tokens(evalset, batch_inds)
+                    microbatch_inds = generate_indices(len(batch_inds), MICROBATCH_SIZE, shuffle = False)
 
+                    pass_mbs = [(pass_t[ind], pass_m[ind]) for ind in microbatch_inds]
+                    rev_mbs = [(rev_t[ind], rev_m[ind]) for ind in microbatch_inds]
+                    
+                    _, _, val_loss, val_acc = encode_and_val(pass_mbs, rev_mbs)
+                    val_losses.append(val_loss)
+                    val_accs.append(val_acc)
+                val_loss = sum(val_losses)/len(val_losses)
+                val_acc = sum(val_accs)/len(val_accs)
+                print("Validation Avg Loss: " + str(val_loss.item()))
+                print("Validation Avg Accuracy: " + str(val_acc.item()))
+                wandb.log({"Loss/validation": val_loss})
+                wandb.log({"Acc/validation": val_acc})
+                    
+            iteration += 1
+            scheduler.step()
 
-            
+from model import ContrastiveModel
+from encoder import TextEncoder
+from load_crit_circle import get_dataset
+import util
+
+if __name__ == "__main__":
+    model = ContrastiveModel(TextEncoder(), TextEncoder())
+    if LOAD_CHECKPOINT: model.load_state_dict(torch.load("./params.pt"))
+    model.cuda()
+
+    # Logging stuff
+    wandb.init(project = "CARP", entity = "Shahbuland")
+    wandb.watch(model)
+    
+    dataset, evalset = get_dataset()
+    print("data loaded")
+
+    train(model, dataset, evalset)

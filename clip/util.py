@@ -1,7 +1,6 @@
 import torch
 import math
-import deepspeed
-
+from constants import *
 # Break list or tensor into chunks
 def chunk(L, sep):
     size = len(L)
@@ -20,6 +19,19 @@ def get_d_model(enc):
 	assert y.shape[0] == 3 
 
 	return y.shape[1]	
+
+# Scheduling function w/ rampup and decay
+def get_scheduling_func():
+    def lerp(a, b, t):
+        t = min(1, t)
+        t = max(0, t)
+        return a + (b - a) * t
+
+    ratio = LEARNING_RATE_TARGET / LEARNING_RATE_INIT
+
+    return lambda step: \
+        (step + 1) / LR_RAMP_STEPS if step < LR_RAMP_STEPS \
+        else lerp(1, ratio, (step - LR_RAMP_STEPS) / LR_DECAY_STEPS)
 
 import argparse
 def get_arguments():
