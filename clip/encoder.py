@@ -33,7 +33,6 @@ class TextEncoder(nn.Module):
             x = self.tok(x)
             mask = x['attention_mask']
             x = x['input_ids']
-
         
         out = self.model(x, mask, output_hidden_states = True, return_dict = True)
         
@@ -52,6 +51,5 @@ class TextEncoder(nn.Module):
             hidden = hidden * emb_mask
         y = hidden.sum(1)
         y = F.normalize(y)
-        #y = F.normalize(y.float()).half()
-
+        
         return y # Sum along sequence
