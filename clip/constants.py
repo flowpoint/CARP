@@ -1,16 +1,13 @@
 N_CTX = 512
 EPOCHS = 10
-BATCH_SIZE = 128 # Contrastive batch
-MICROBATCH_SIZE = 8 # Minibatches in contrastive batch
+BATCH_SIZE = 1024 # Contrastive batch
+MICROBATCH_SIZE = 32 # Minibatches in contrastive batch
 
 # Size of encodings
 LATENT_DIM = 2048
 
 # info on HF model being used
-import transformers
-MODEL = transformers.ElectraForPreTraining
-TOKENIZER = transformers.ElectraTokenizerFast
-MODEL_PATH = "google/electra-large-discriminator"
+MODEL_PATH = "google/electra-large-generator"
 
 # training
 LR_RAMP_STEPS = 400
@@ -21,7 +18,8 @@ LEARNING_RATE_TARGET = 1e-6
 LOG_INTERVAL = 2
 CHECKPOINT_INTERVAL = 1000
 VALIDATE_INTERVAL = 1000
-LOAD_CHECKPOINT = False
-
+LOAD_CHECKPOINT = True
+USE_HALF = False
+DO_LOG = True # Log to WANDB?
 # For dataset
 VALIDATION_SIZE = 1000

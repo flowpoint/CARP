@@ -15,10 +15,8 @@ def generate_indices(total_size, batch_size, shuffle = True):
 # Get output dim of TextEncoder
 def get_d_model(enc):
 	x = ["hello world", "hi world", "bla bla"]
-	y = enc(x, tokenize = True)
-	assert y.shape[0] == 3 
-
-	return y.shape[1]	
+	y = enc(x, tokenize = True, mask_sum = False)
+	return y.shape[-1]	
 
 # Scheduling function w/ rampup and decay
 def get_scheduling_func():

@@ -123,7 +123,8 @@ def train(model, dataset, evalset):
             if iteration % LOG_INTERVAL == 0:
                 print("EPOCH [" + str(epoch) + "/" + str(EPOCHS) +
                   "] Batch Loss: " + str(round(batch_loss, 3)))
-                wandb.log({"Loss/train": batch_loss, "Loss/test": test_loss,
+                if DO_LOG:
+                    wandb.log({"Loss/train": batch_loss, "Loss/test": test_loss,
                             "Acc/test": test_acc})
             # Checkpoint model and scheduler
             if iteration % CHECKPOINT_INTERVAL == 0:
@@ -146,14 +147,15 @@ def train(model, dataset, evalset):
                     rev_mbs = [(rev_t[ind], rev_m[ind]) for ind in microbatch_inds]
                     
                     _, _, val_loss, val_acc = encode_and_val(pass_mbs, rev_mbs)
-                    val_losses.append(val_loss)
-                    val_accs.append(val_acc)
+                    val_losses.append(val_loss.item())
+                    val_accs.append(val_acc.item())
                 val_loss = sum(val_losses)/len(val_losses)
                 val_acc = sum(val_accs)/len(val_accs)
-                print("Validation Avg Loss: " + str(val_loss.item()))
-                print("Validation Avg Accuracy: " + str(val_acc.item()))
-                wandb.log({"Loss/validation": val_loss})
-                wandb.log({"Acc/validation": val_acc})
+                print("Validation Avg Loss: " + str(val_loss))
+                print("Validation Avg Accuracy: " + str(val_acc))
+                if DO_LOG:
+                    wandb.log({"Loss/validation": val_loss})
+                    wandb.log({"Acc/validation": val_acc})
                     
             iteration += 1
             scheduler.step()
@@ -167,10 +169,12 @@ if __name__ == "__main__":
     model = ContrastiveModel(TextEncoder(), TextEncoder())
     if LOAD_CHECKPOINT: model.load_state_dict(torch.load("./params.pt"))
     model.cuda()
+    if USE_HALF: model.half()
 
     # Logging stuff
-    wandb.init(project = "CARP", entity = "Shahbuland")
-    wandb.watch(model)
+    if DO_LOG:
+        wandb.init(project = "CARP", entity = "Shahbuland", resume = LOAD_CHECKPOINT)
+        wandb.watch(model)
     
     dataset, evalset = get_dataset()
     print("data loaded")
