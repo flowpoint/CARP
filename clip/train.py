@@ -72,7 +72,7 @@ def train(model, dataset, evalset):
             rev_mbs = [(rev_tokens[ind], rev_masks[ind]) for ind in microbatch_inds]
 
             # Initially get all encodings without grad
-            pass_encs, rev_encs, forawrd_loss, forward_acc = encode_and_val(pass_mbs, rev_mbs)
+            pass_encs, rev_encs, forward_loss, forward_acc = encode_and_val(pass_mbs, rev_mbs)
 
             opt.zero_grad()
 
@@ -95,7 +95,7 @@ def train(model, dataset, evalset):
             # Logging (in terminal and on WANDB)
             if iteration % LOG_INTERVAL == 0:
                 print("EPOCH [" + str(epoch) + "/" + str(EPOCHS) +
-                  "] Batch Loss: " + str(round(batch_loss, 3)))
+                  "] Batch Loss: " + str(forward_loss.item()))
                 if DO_LOG:
                     wandb.log({"Loss/train": forward_loss,
                             "Acc/train": forward_acc})
@@ -113,9 +113,9 @@ def train(model, dataset, evalset):
             if iteration % VALIDATE_INTERVAL == 0:
                 print("VALIDATING...")
                 model.eval()
-                batches_inds = generate_indices(evalset_size, BATCH_SIZE)
+                val_batches_inds = generate_indices(evalset_size, BATCH_SIZE)
                 val_losses, val_accs = [], []
-                for batch_inds in batches_inds:
+                for batch_inds in val_batches_inds:
                     pass_t, pass_m, rev_t, rev_m = get_batch_tokens(evalset, batch_inds)
                     microbatch_inds = generate_indices(len(batch_inds), MICROBATCH_SIZE, shuffle = False)
 
