@@ -1,0 +1,9 @@
+transformers
+datasets
+einops
+flax
+aiohttp
+jsonlines
+zstandard
+wandb
+SentencePiece
