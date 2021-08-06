@@ -3,10 +3,9 @@ import jax.numpy as np
 import flax
 
 from constants import *
-from models import TextEncoder, ContrastiveLoss, FlaxTokenizers
+from models import TextEncoder, ContrastiveLoss, FlaxTokenizer
 from util import generate_indices, clip_logit, save_checkpoint
-from train_util import pass_fwd, rev_fwd, accum_grads
-from train_util import partition_microbatches
+from train_util import pass_fwd, rev_fwd, accum_grads_pass, accum_grads_rev
 
 
 def train(states, dataset, evalset):

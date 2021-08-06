@@ -41,7 +41,7 @@ rev_state = make_train_state(rev_params, TextEncoder().__call__)
 ls_state = make_train_state(logit_scale, ContrastiveLoss().__call__)
 states = [pass_state, rev_state, ls_state]
 
-dataset, evalset = get_toy_dataset()
+dataset, evalset = get_dataset()
 
 if DO_LOG:
   wandb.init(project='CARP-JAX', entity='shahbuland', resume = LOAD_CHECKPOINT)
