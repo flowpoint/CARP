@@ -33,9 +33,8 @@ def train(states, dataset, evalset):
     # MB is microbatch size
     pass_mbs, rev_mbs = mbs # -> both (NMB x T x MB x N_i)
 
-    @jax.pmap
     def get_encs(mbs, state):
-      NMB = mbs.size
+      NMB = len(mbs)
       encodings = np.zeros((NMB, MICROBATCH_SIZE, LATENT_DIM))
       def update_inplace(i, encodings):
         return jax.ops.index_update(encodings, jax.ops.index[i],
@@ -43,35 +42,47 @@ def train(states, dataset, evalset):
       encodings = jax.lax.fori_loop(0, NMB, update_inplace, encodings)
       return np.concatenate(encodings) # -> (B x D)
 
+    get_encs = jax.pmap(get_encs)
+
     pass_state = flax.jax_utils.replicate(pass_state)
-    pass_mbs = device_split(pass_mbs) # Each device gets some microbatches
+    pass_mbs = device_split(pass_mbs)
     pass_encs = get_encs(pass_mbs, pass_state)
     pass_encs = device_join(pass_encs)
     pass_params = flax.jax_utils.unreplicate(pass_state)
     
     rev_state = flax.jax_utils.replicate(rev_state)
-    rev_mbs = np.array_split(rev_mbs, N_DEVICES)
+    rev_mbs = device_split(rev_mbs)
     rev_encs = get_encs(rev_mbs, rev_state)
     rev_encs = device_join(rev_encs)
-    rev_state = flax.jax_utils.replicate(rev_state)
+    rev_state = flax.jax_utils.unreplicate(rev_state)
 
     encs = np.stack((pass_encs, rev_encs))
 
-    loss, acc = ContrastiveLoss().apply(logit_scale, encs)
+    loss, acc = ContrastiveLoss().apply(ls_state.params, encs)
 
     # -> 2 x B x D
     return encs, loss, acc
   
   # Create microbatches from batch using indices
-
+  def partition_microbatches(batch, inds):
+    # data: T x B x N
+    batch = eo.repeat(batch, 'T B N -> 1 T B N')
+    mbs = [batch[:,:,ind,:] for ind in inds]
+    return np.concatenate(mbs) # -> NMB x T x MB x N
 
   dataset_size = len(dataset)
   evalset_size = len(evalset)
 
   total_steps = 0
 
+  # Because splits all depend on divisible sizes,
+  # need to skip a batch that isn't fixed size
+  skip_last_batch = dataset_size % BATCH_SIZE != 0
+  val_skip_last_batch = evalset_size % BATCH_SIZE != 0
+
   for epoch in range(EPOCHS):
     batches_inds = generate_indices(dataset_size, BATCH_SIZE)
+    if skip_last_batch: batches_inds = batches_inds[:-1]
     for batch_inds in batches_inds:
       pass_batch, rev_batch = get_batch_tokens(dataset, batch_inds)
       microbatch_inds = generate_indices(len(batch_inds), MICROBATCH_SIZE, shuffle = False)
@@ -94,54 +105,81 @@ def train(states, dataset, evalset):
       # Split microbatch inds across devices
       microbatch_inds = device_split(np.stack(microbatch_inds))
 
-      pass_params = flax.jax_utils.replicate(pass_params)
-      rev_params = flax.jax_utils.replicate(rev_params)
-      logit_scale = flax.jax_utils.replicate(logit_scale)
+      accum_grad_func = jax.pmap(accum_grads_pass,
+                                 static_broadcasted_argnums=[2,3,4,5])
 
-      accum_grad_func = jax.pmap(accum_grads,
-                                 static_broadcasted_argnums = [3,4,5])
-      pass_grads, rev_grads, ls_grads = accum_grad_func(pass_params, rev_params,
-                                                        logit_scale, batch, 
-                                                        pass_encs, rev_encs)
+      pass_state = flax.jax_utils.replicate(pass_state)
+      ls_state = flax.jax_utils.replicate(ls_state)
+      pass_grads, ls_grads1 = accum_grad_func(pass_state, ls_state,
+                                              (pass_batch, rev_batch), 
+                                              pass_encs, rev_encs, True,
+                                              microbatch_inds)
+      pass_state = flax.jax_utils.unreplicate(pass_state)
+
+      accum_grad_func = jax.pmap(accum_grads_rev,
+                                 static_broadcasted_argnums=[2,3,4,5])
+
+      rev_state = flax.jax_utils.replicate(rev_state)
+      rev_grads, ls_grads2 = accum_grad_func(rev_state, ls_state,
+                                             (pass_batch, rev_batch),
+                                             pass_encs, rev_encs, False,
+                                             microbatch_inds)
+      rev_state = flax.jax_utils.unreplicate(rev_state)
+      ls_state = flax.jax_utils.unreplicate(ls_state)
+      
       
       # Sum up the accumulated gradients
       pass_grads = jax.tree_map(lambda x: x.sum(0), pass_grads)
       rev_grads = jax.tree_map(lambda x: x.sum(0), rev_grads)
-      ls_grads = jax.tree_map(lambda x: x.sum(0), ls_grads)
+      ls_grads = jax.tree_map(lambda x: x.sum(0), tree_add(ls_grads1,
+                                                           ls_grads2))
       
-      pass_params = flax.jax_utils.unreplicate(pass_params)
-      rev_params = flax.jax_utils.unreplicate(rev_params)
-      logit_scale = flax.jax_utils.unreplicate(logit_scale)
+      pass_state = pass_state.apply_gradients(grads = pass_grads)
+      rev_state = rev_state.apply_gradients(grads = rev_grads)
+      ls_state = ls_state.apply_gradients(grads = ls_grads)
 
-      update_pass, pass_opt_state = pass_opt.update(pass_grads, pass_opt_state, pass_params)
-      update_rev, rev_opt_state = rev_opt.update(rev_grads, rev_opt_state, rev_params)
-      update_ls, ls_opt_state = ls_opt.update(ls_grads, ls_opt_state, logit_scale)
-
-      pass_params = optax.apply_updates(pass_params, update_pass)
-      rev_params = optax.apply_updates(rev_params, update_rev)
-      logit_scale = optax.apply_updates(logit_scale, update_ls)
-
-      logit_scale = clip_logit(logit_scale)
+      ls_state = clip_logit(ls_state)
 
       
       # Logging (in terminal and WANDB)
       if total_steps % LOG_INTERVAL == 0:
         print("EPOCH [" + str(epoch) + "/" + str(EPOCHS) + 
-              "] Batch Loss: " + str(batch_loss))
+              "] Batch Loss: " + str(batch_loss) + ", Batch Acc: " + str(batch_acc))
         if DO_LOG:
           wandb.log({"Loss/train": batch_loss,
                      "Acc/train": batch_acc})
+          
       if total_steps % CHECKPOINT_INTERVAL == 0:
         print("SAVING...")
-        save_checkpoint([pass_params, rev_params, logit_scale,
-                         pass_opt_state, rev_opt_state, ls_opt_state])
+        save_checkpoint([pass_state, rev_state, ls_state])
         # Once every 10 saves, save copied backup
         if total_steps % (10 * CHECKPOINT_INTERVAL) == 0:
-          save_checkpoint([pass_params, rev_params, logit_scale,
-                         pass_opt_state, rev_opt_state, ls_opt_state],
+          save_checkpoint([pass_state, rev_state, ls_state],
                           "checkpoints", str(total_steps))
 
+      if total_steps % VALIDATE_INTERVAL == 0:
+        print("VALIDATING...")
+        val_batches_inds = generate_indices(evalset_size, BATCH_SIZE)
+        if val_skip_last_batch: val_batches_inds = val_batches_inds[:-1]
+        val_losses, val_accs = [], []
+        for batch_inds in val_batches_inds:
+          pass_batch, rev_batch = get_batch_tokens(evalset, batch_inds)
+          microbatch_inds = generate_indices(len(batch_inds), MICROBATCH_SIZE, shuffle = False)
 
+          mbs = [partition_microbatches(pass_batch, microbatch_inds),
+                 partition_microbatches(rev_batch, microbatch_inds)]
+          
+          _, val_loss, val_acc = encode_and_val(mbs, pass_state, rev_state, ls_state)
+          val_losses.append(val_loss)
+          val_accs.append(val_acc)
 
-      total_steps += 1
-      exit()
+        val_loss = sum(val_losses)/len(val_losses)
+        val_acc = sum(val_accs)/len(val_accs)
+
+        print("Validation Avg Loss: " + str(val_loss))
+        print("Validation Avg Accuracy: " + str(val_acc))
+
+        if DO_LOG:
+          wandb.log({"Loss/validation": val_loss})
+          wandb.log({"Acc/validation": val_acc})
+

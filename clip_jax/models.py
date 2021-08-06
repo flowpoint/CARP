@@ -45,6 +45,8 @@ class FlaxTokenizer():
                      position_ids])
     return res
 
+from transformers.models.bert.modeling_flax_bert import FlaxBertForMaskedLMModule
+
 class LMEmbedder(nn.Module):
   def setup(self):
     self.model = FlaxBertForMaskedLMModule(get_model_config())
@@ -87,8 +89,8 @@ class ContrastiveLoss(nn.Module):
     logits = x @ y.T * np.exp(scale)
     labels = np.arange(x.shape[0])
 
-    loss_x = optax.softmax_cross_entropy(logits, labels)
-    loss_y = optax.softmax_cross_entropy(np.transpose(logits), labels)
+    loss_x = optax.softmax_cross_entropy(logits, labels).mean()
+    loss_y = optax.softmax_cross_entropy(np.transpose(logits), labels).mean()
     acc_x = np.sum((np.argmax(logits, axis = 1) == labels))
     acc_y = np.sum((np.argmax(logits, axis = 0) == labels))
 
@@ -101,7 +103,12 @@ def load_pretrained(state):
     state = state.unfreeze()
   
   pretrained_model = transformers.FlaxBertForMaskedLM(get_model_config()).from_pretrained("bert-base-uncased")
+  
+  tokenizer = transformers.AutoTokenizer.from_pretrained("bert-base-uncased")
+
   pretrained_state = pretrained_model.params # {'bert', 'cls'}
+  tokenizer.add_special_tokens(special_token_dict)
+  pretrained_model.resize_token_embeddings(len(tokenizer))
 
   state['params']['LMEmbedder_0']['model'] = pretrained_state
 

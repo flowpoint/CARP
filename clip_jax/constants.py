@@ -1,9 +1,10 @@
 LATENT_DIM = 2048
 N_CTX = 512
+TAU_PLUS = 0.1 # Constant for hard negative sampling
 
 EPOCHS = 100
-BATCH_SIZE = 16 # Contrastive Batch
-MICROBATCH_SIZE = 4 # Minibatches in contrastive  batch
+BATCH_SIZE = 512 # Contrastive Batch
+MICROBATCH_SIZE = 16 # Minibatches in contrastive  batch
 
 LOG_INTERVAL = 2
 CHECKPOINT_INTERVAL = 15
@@ -21,3 +22,8 @@ LEARNING_RATE_MIN = 1e-6
 
 N_DEVICES = 8
 
+assert BATCH_SIZE % MICROBATCH_SIZE == 0
+assert (BATCH_SIZE // MICROBATCH_SIZE) % N_DEVICES == 0
+
+import jax
+KEY = jax.random.PRNGKey(0)

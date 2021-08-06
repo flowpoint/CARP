@@ -9,11 +9,6 @@ from constants import *
 def l2norm(x):
   return x / np.linalg.norm(x, axis = 1, keepdims = True)
 
-@jax.jit
-def constInit(a):
-  return lambda key, shape, dtype = np.float32: \
-    a * np.ones(shape, dtype)
-
 # Break list into chunks of sep elements
 def chunk(L, sep):
   size = len(L)
@@ -80,7 +75,7 @@ def load_checkpoint(n_states, path = ".", name_prefix = ""):
 # Split data on first axis across devices
 # Complements replicate
 def device_split(arr):
-  return np.array_split(arr, N_DEVICES)
+  return np.stack(np.array_split(arr, N_DEVICES))
 
 # As above, complements unreplicate
 def device_join(arr):
