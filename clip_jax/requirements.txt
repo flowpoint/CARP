@@ -7,3 +7,4 @@ jsonlines
 zstandard
 wandb
 SentencePiece
+smart_open[gce]
