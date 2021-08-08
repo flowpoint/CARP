@@ -52,21 +52,23 @@ def get_scheduling_fn():
 
 # Serialization
 from flax import serialization
+from smart_open import open
 
+root = "gs://carp-model-storage"
 # Saves checkpoint in path, name_prefix is used to differentiate checkpoints
-def save_checkpoint(states, path = ".", name_prefix = ""):
+def save_checkpoint(states, path = "", name_prefix = ""):
   for i, state in enumerate(states):
     state_bytes = serialization.to_bytes(state)
-    f = open(path + "/state" + str(i), "wb")
+    f = open(root + path + "/state" + str(i), "wb")
     f.write(state_bytes)
     f.close()
 
 # Same logic as above, but returns loaded states in list form
 # Needs number of states being read
-def load_checkpoint(n_states, path = ".", name_prefix = ""):
+def load_checkpoint(n_states, path = "", name_prefix = ""):
   states = [None for _ in range(n_states)]
   for i, state in enumerate(states):
-    f = open(path + "/state" + str(i), "rb")
+    f = open(root + path + "/state" + str(i), "rb")
     states[i] = serialization.from_bytes(state, f.read())
     f.close()
 
