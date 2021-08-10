@@ -27,22 +27,28 @@ else:
   # Create model params
   inputs = np.ones((4, BATCH_SIZE, N_CTX))
   loss_inputs = np.ones((2, BATCH_SIZE, LATENT_DIM))
+  print("Initializing models...")
   logit_scale = ContrastiveLoss().init(KEY, loss_inputs)
   pass_params = TextEncoder().init(KEY, inputs)
   rev_params = TextEncoder().init(KEY, inputs)
 
+  print("Attempting to load pretrained models for finetuning...")
   pass_params = load_pretrained(pass_params)
   rev_params = load_pretrained(rev_params)
 
   
 # Create train states
+print("Creating train states...")
 pass_state = make_train_state(pass_params, TextEncoder().__call__)
 rev_state = make_train_state(rev_params, TextEncoder().__call__)
 ls_state = make_train_state(logit_scale, ContrastiveLoss().__call__)
 states = [pass_state, rev_state, ls_state]
 
+print("Loading dataset...")
 dataset, evalset = get_dataset()
+print("Dataset loaded")
 
 if DO_LOG:
   wandb.init(project='CARP-JAX', entity='shahbuland', resume = LOAD_CHECKPOINT)
 
+train(states, dataset, evalset)
