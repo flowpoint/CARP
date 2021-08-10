@@ -5,7 +5,8 @@ import wandb
 
 from constants import *
 from train import train
-from models import TextEncoder, ContrastiveLoss
+from models import TextEncoder, ContrastiveLoss, load_pretrained
+
 from util import get_scheduling_fn, load_checkpoint
 from dataloading import get_dataset, get_toy_dataset
 
