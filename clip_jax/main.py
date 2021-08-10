@@ -25,8 +25,8 @@ if LOAD_CHECKPOINT:
   pass_params, rev_params, logit_scale, pass_opt_state, rev_opt_state, ls_opt_state = load_checkpoint(6)
 else:
   # Create model params
-  inputs = np.ones((4, BATCH_SIZE, N_CTX))
-  loss_inputs = np.ones((2, BATCH_SIZE, LATENT_DIM))
+  inputs = np.ones((4, MICROBATCH_SIZE, N_CTX))
+  loss_inputs = np.ones((2, MICROBATCH_SIZE, LATENT_DIM))
   print("Initializing models...")
   logit_scale = ContrastiveLoss().init(KEY, loss_inputs)
   pass_params = TextEncoder().init(KEY, inputs)
