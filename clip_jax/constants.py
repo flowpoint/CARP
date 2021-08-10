@@ -27,3 +27,8 @@ assert (BATCH_SIZE // MICROBATCH_SIZE) % N_DEVICES == 0
 
 import jax
 KEY = jax.random.PRNGKey(0)
+
+# Get data from bucket?
+# (as opposed to locally)
+USE_BUCKET = True
+

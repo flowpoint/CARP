@@ -74,6 +74,14 @@ def load_checkpoint(n_states, path = "", name_prefix = ""):
 
   return states
 
+# Same as load_dataset from dataloader, but for bucket
+import gcsfs
+import datasets
+def load_dataset_from_bucket():
+    gcs = gcsfs.GCSFileSystem(project = 'carp-320015')
+    dataset = datasets.load_from_disk(root + "/critiquecircle_critiques_masked_anon", fs = gcs)
+    return dataset
+    
 # Split data on first axis across devices
 # Complements replicate
 def device_split(arr):

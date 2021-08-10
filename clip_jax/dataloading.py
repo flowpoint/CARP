@@ -1,9 +1,13 @@
 from datasets import load_from_disk
 
+import util
 from constants import *
 
 def get_dataset():
-    dataset = load_from_disk("critiquecircle_critiques_masked_anon")
+    if USE_BUCKET:
+        dataset = util.load_dataset_from_bucket()
+    else:
+        dataset = load_from_disk("critiquecircle_critiques_masked_anon")
     train = dataset['train']
     passages = train['story_target']
     reviews = train['target_comment']
