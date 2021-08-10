@@ -12,9 +12,10 @@ from util import l2norm
 from transformers.models.bert.modeling_flax_bert import FlaxBertForMaskedLMModule
 
 special_token_dict = {'cls_token':'[CLS]', 'mask_token':'[quote]'}
+model_name = "bert-base-uncased"
 
 def get_model_config():
-  tokenizer = transformers.AutoTokenizer.from_pretrained("bert-base-uncased")
+  tokenizer = transformers.AutoTokenizer.from_pretrained(model_name)
   config = transformers.BertConfig()
   tokenizer.add_special_tokens(special_token_dict)
   config.vocab_size = len(tokenizer)
@@ -23,7 +24,7 @@ def get_model_config():
 
 class FlaxTokenizer():
   def __init__(self):
-    self.tokenizer = transformers.AutoTokenizer.from_pretrained("bert-base-uncased")
+    self.tokenizer = transformers.AutoTokenizer.from_pretrained(model_name)
     self.tokenizer.add_special_tokens(special_token_dict)
   
   def add_cls(self, string_batch):
@@ -105,13 +106,9 @@ def load_pretrained(state):
  
   model_class = transformers.FlaxBertForMaskedLM
   cfg = get_model_config()
-  pretrained_model = model_class(cfg).from_pretrained("bert-base-uncased", config = cfg)
+  pretrained_model = model_class(cfg).from_pretrained(model_name, config = cfg, ignore_mismatched_sizes = True)
   
-  tokenizer = transformers.AutoTokenizer.from_pretrained("bert-base-uncased")
-
   pretrained_state = pretrained_model.params # {'bert', 'cls'}
-  tokenizer.add_special_tokens(special_token_dict)
-  pretrained_model.resize_token_embeddings(len(tokenizer))
 
   state['params']['LMEmbedder_0']['model'] = pretrained_state
 
