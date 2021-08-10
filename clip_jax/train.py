@@ -57,7 +57,8 @@ def train(states, dataset, evalset):
 
     encs = np.stack((pass_encs, rev_encs))
 
-    loss, acc = ContrastiveLoss().apply(ls_state.params, encs)
+    ls_unrp = flax.jax_utils.unreplicate(ls_state)
+    loss, acc = ContrastiveLoss().apply(ls_unrp.params, encs)
 
     # -> 2 x B x D
     return encs, loss, acc
