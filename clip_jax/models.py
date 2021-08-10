@@ -6,6 +6,7 @@ import optax
 import flax
 import flax.linen as nn
 
+from constants import *
 from util import l2norm
 
 from transformers.models.bert.modeling_flax_bert import FlaxBertForMaskedLMModule
