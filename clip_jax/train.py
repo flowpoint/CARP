@@ -80,14 +80,14 @@ def train(states, dataset, evalset):
                                             batch, pass_encs, rev_encs, microbatch_inds)
     rev_grads = jax.lax.pmean(rev_grads, "batch")
 
-    #ls_grads1 = tree_add(ls_grads1, ls_grads2)
-    #ls_grads1 = jax.lax.pmean(ls_grads1, "batch")
+    ls_grads1 = tree_add(ls_grads1, ls_grads2)
+    ls_grads1 = jax.lax.pmean(ls_grads1, "batch")
 
     new_pass = pass_state.apply_gradients(grads=pass_grads)
     new_rev = rev_state.apply_gradients(grads=rev_grads)
-    #new_ls = ls_state.apply_gradients(grads=ls_grads1)
+    new_ls = ls_state.apply_gradients(grads=ls_grads1)
 
-    return [new_pass, new_rev, ls_state]
+    return [new_pass, new_rev, new_ls]
 
   dataset_size = len(dataset)
   evalset_size = len(evalset)
