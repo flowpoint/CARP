@@ -81,7 +81,7 @@ def train(states, dataset, evalset):
     rev_grads = jax.lax.pmean(rev_grads, "batch")
 
     ls_grads1 = tree_add(ls_grads1, ls_grads2)
-    ls_grads1 = jax.lax.pmean(ls_grads2, "batch")
+    ls_grads1 = jax.lax.pmean(ls_grads1, "batch")
 
     new_pass = pass_state.apply_gradients(grads=pass_grads)
     new_rev = rev_state.apply_gradients(grads=rev_grads)
