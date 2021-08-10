@@ -1,6 +1,7 @@
 import jax
 import jax.numpy as np
 import flax
+import einops as eo
 
 from constants import *
 from models import TextEncoder, ContrastiveLoss, FlaxTokenizer
