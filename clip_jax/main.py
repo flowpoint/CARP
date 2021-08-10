@@ -47,7 +47,7 @@ states = [pass_state, rev_state, ls_state]
 
 print("Loading dataset...")
 dataset, evalset = get_dataset()
-print("Dataset loaded")
+print("Dataset loaded (size: " + str(len(dataset)) + ")")
 
 if DO_LOG:
   wandb.init(project='CARP-JAX', entity='shahbuland', resume = LOAD_CHECKPOINT)
