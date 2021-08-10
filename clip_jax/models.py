@@ -102,8 +102,10 @@ class ContrastiveLoss(nn.Module):
 def load_pretrained(state):
   if(type(state) != dict): # It's either frozen or not
     state = state.unfreeze()
-  
-  pretrained_model = transformers.FlaxBertForMaskedLM(get_model_config()).from_pretrained("bert-base-uncased")
+ 
+  model_class = transformers.FlaxBertForMaskedLM
+  cfg = get_model_config()
+  pretrained_model = model_class(cfg).from_pretrained("bert-base-uncased", config = cfg)
   
   tokenizer = transformers.AutoTokenizer.from_pretrained("bert-base-uncased")
 
