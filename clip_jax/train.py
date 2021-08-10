@@ -159,7 +159,7 @@ def train(states, dataset, evalset):
           save_checkpoint([pass_state, rev_state, ls_state],
                           "/checkpoints", str(total_steps))
 
-      if total_steps % VALIDATE_INTERVAL == 0:
+      if DO_VALIDATE and (total_steps % VALIDATE_INTERVAL == 0):
         print("VALIDATING...")
         val_batches_inds = generate_indices(evalset_size, BATCH_SIZE)
         if val_skip_last_batch: val_batches_inds = val_batches_inds[:-1]
