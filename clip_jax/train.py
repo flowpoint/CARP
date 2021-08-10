@@ -184,3 +184,6 @@ def train(states, dataset, evalset):
           wandb.log({"Loss/validation": val_loss})
           wandb.log({"Acc/validation": val_acc})
 
+      total_steps += 1
+      
+
