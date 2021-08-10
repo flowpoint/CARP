@@ -6,7 +6,7 @@ import einops as eo
 from constants import *
 from models import TextEncoder, ContrastiveLoss, FlaxTokenizer
 from util import generate_indices, clip_logit, save_checkpoint
-from util import device_split, device_join
+from util import device_split, device_join, tree_add
 from train_util import pass_fwd, rev_fwd, accum_grads_pass, accum_grads_rev
 
 
