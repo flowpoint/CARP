@@ -3,6 +3,7 @@ import jax.numpy as np
 import flax
 import einops as eo
 import wandb
+from jax.interpreters import xla
 
 from constants import *
 from models import TextEncoder, ContrastiveLoss, FlaxTokenizer
@@ -108,23 +109,23 @@ def train(states, dataset, evalset):
       microbatch_inds = device_split(np.stack(microbatch_inds))
 
       accum_grad_func = jax.pmap(accum_grads_pass,
-                                 static_broadcasted_argnums=[2,3,4,5])
+                                 static_broadcasted_argnums=[2,3,4])
 
       pass_state = flax.jax_utils.replicate(pass_state)
       ls_state = flax.jax_utils.replicate(ls_state)
       pass_grads, ls_grads1 = accum_grad_func(pass_state, ls_state,
                                               (pass_batch, rev_batch), 
-                                              pass_encs, rev_encs, True,
+                                              pass_encs, rev_encs,
                                               microbatch_inds)
       pass_state = flax.jax_utils.unreplicate(pass_state)
 
       accum_grad_func = jax.pmap(accum_grads_rev,
-                                 static_broadcasted_argnums=[2,3,4,5])
+                                 static_broadcasted_argnums=[2,3,4])
 
       rev_state = flax.jax_utils.replicate(rev_state)
       rev_grads, ls_grads2 = accum_grad_func(rev_state, ls_state,
                                              (pass_batch, rev_batch),
-                                             pass_encs, rev_encs, False,
+                                             pass_encs, rev_encs,
                                              microbatch_inds)
       rev_state = flax.jax_utils.unreplicate(rev_state)
       ls_state = flax.jax_utils.unreplicate(ls_state)
@@ -186,5 +187,5 @@ def train(states, dataset, evalset):
           wandb.log({"Acc/validation": val_acc})
 
       total_steps += 1
-      
+      xla._xla_callable.cache_clear()
 
