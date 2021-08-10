@@ -37,17 +37,12 @@ def rev_fwd():
   return jax.grad(fwd, (0, 1))
 
 # Accumulate grads given indices to microbatches
-@jax.jit
 def accum_grads_pass(enc_state, ls_state, batch,
-                pass_encs, rev_encs, which_enc, mb_inds):
+                pass_encs, rev_encs, mb_inds):
   # mb_inds -> NMB x MB
   NMB = len(mb_inds)
 
-  #grad_fn = fwd(batch, pass_encs, rev_encs)
   grad_fn = pass_fwd()
-
-  #pass_grad_func = pass_fwd(batch, pass_encs, rev_encs)
-  #rev_grad_func = rev_fwd(batch, pass_encs, rev_encs)
 
   # Get first gradients manually
   enc_grad, ls_grad = grad_fn(enc_state.params, ls_state.params, 
@@ -57,7 +52,6 @@ def accum_grads_pass(enc_state, ls_state, batch,
   #rev_grad, ls_grad2 = rev_grad_func(rev_state.params, ls_state.params, mb_inds[0])
   #ls_grad = tree_add(ls_grad1, ls_grad2)
 
-  @jax.jit
   def accum_loop(i, inp): #inp: prev_enc_grad, prev_ls_grad, grad_fn, state
     prev_enc_grads, prev_ls_grads = inp
     new_enc_grad, new_ls_grad = grad_fn(enc_state.params, ls_state.params,
@@ -71,17 +65,12 @@ def accum_grads_pass(enc_state, ls_state, batch,
 
 # Repeating the above might seem silly but literally could not figure out 
 # a way to make jax happy without making a copy
-@jax.jit
 def accum_grads_rev(enc_state, ls_state, batch,
-                pass_encs, rev_encs, which_enc, mb_inds):
+                pass_encs, rev_encs, mb_inds):
   # mb_inds -> NMB x MB
   NMB = len(mb_inds)
 
-  #grad_fn = fwd(batch, pass_encs, rev_encs)
   grad_fn = rev_fwd()
-
-  #pass_grad_func = pass_fwd(batch, pass_encs, rev_encs)
-  #rev_grad_func = rev_fwd(batch, pass_encs, rev_encs)
 
   # Get first gradients manually
   enc_grad, ls_grad = grad_fn(enc_state.params, ls_state.params, 
@@ -91,7 +80,6 @@ def accum_grads_rev(enc_state, ls_state, batch,
   #rev_grad, ls_grad2 = rev_grad_func(rev_state.params, ls_state.params, mb_inds[0])
   #ls_grad = tree_add(ls_grad1, ls_grad2)
 
-  @jax.jit
   def accum_loop(i, inp): #inp: prev_enc_grad, prev_ls_grad, grad_fn, state
     prev_enc_grads, prev_ls_grads = inp
     new_enc_grad, new_ls_grad = grad_fn(enc_state.params, ls_state.params,
