@@ -130,7 +130,8 @@ def train(states, dataset, evalset):
       # Split microbatch inds across devices
       microbatch_inds = device_split(np.stack(microbatch_inds))
 
-      p_train_step = jax.pmap(train_step, static_broadcasted_argnums=[3,4,5],
+      p_train_step = jax.pmap(train_step, "batch",
+                                static_broadcasted_argnums=[3,4,5],
                                 donate_argnums=[0,1,2,6])
       pass_state, rev_state, ls_state = p_train_step(pass_state, rev_state, ls_state,
                                                     (pass_batch, rev_batch), pass_encs, rev_encs,
