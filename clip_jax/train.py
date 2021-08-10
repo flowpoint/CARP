@@ -50,7 +50,7 @@ def train(states, dataset, evalset):
     pass_mbs = device_split(pass_mbs)
     pass_encs = get_encs(pass_mbs, pass_state)
     pass_encs = device_join(pass_encs)
-    pass_params = flax.jax_utils.unreplicate(pass_state)
+    pass_state = flax.jax_utils.unreplicate(pass_state)
     
     rev_state = flax.jax_utils.replicate(rev_state)
     rev_mbs = device_split(rev_mbs)
