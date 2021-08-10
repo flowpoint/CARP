@@ -151,7 +151,7 @@ def train(states, dataset, evalset):
           wandb.log({"Loss/train": batch_loss,
                      "Acc/train": batch_acc})
           
-      if total_steps % CHECKPOINT_INTERVAL == 0:
+      if SAVE_CHECKPOINTS and (total_steps % CHECKPOINT_INTERVAL == 0):
         print("SAVING...")
         save_checkpoint([pass_state, rev_state, ls_state])
         # Once every 10 saves, save copied backup
