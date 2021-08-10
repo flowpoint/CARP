@@ -47,17 +47,13 @@ def train(states, dataset, evalset):
 
     get_encs = jax.pmap(get_encs)
 
-    pass_state = flax.jax_utils.replicate(pass_state)
     pass_mbs = device_split(pass_mbs)
     pass_encs = get_encs(pass_mbs, pass_state)
     pass_encs = device_join(pass_encs)
-    pass_state = flax.jax_utils.unreplicate(pass_state)
     
-    rev_state = flax.jax_utils.replicate(rev_state)
     rev_mbs = device_split(rev_mbs)
     rev_encs = get_encs(rev_mbs, rev_state)
     rev_encs = device_join(rev_encs)
-    rev_state = flax.jax_utils.unreplicate(rev_state)
 
     encs = np.stack((pass_encs, rev_encs))
 
@@ -73,6 +69,25 @@ def train(states, dataset, evalset):
     mbs = [batch[:,:,ind,:] for ind in inds]
     return np.concatenate(mbs) # -> NMB x T x MB x N
 
+  def train_step(pass_state, rev_state, ls_state, batch, pass_encs, rev_encs, microbatch_inds):
+    # Get gradients for passage encoder
+    pass_grads, ls_grads1 = accum_grads_pass(pass_state, ls_state,
+                                            batch, pass_encs, rev_encs, microbatch_inds)
+    pass_grads = jax.lax.pmean(pass_grads, "batch")
+
+    rev_grads, ls_grads2 = accum_grads_rev(rev_state, ls_state,
+                                            batch, pass_encs, rev_encs, microbatch_inds)
+    rev_grads = jax.lax.pmean(rev_grads, "batch")
+
+    ls_grads1 = tree_add(ls_grads1, ls_grads2)
+    ls_grads1 = jax.lax.pmean(ls_grads2, "batch")
+
+    new_pass = pass_state.apply_gradients(grads=pass_grads)
+    new_rev = rev_state.apply_gradients(grads=rev_grads)
+    new_ls = ls_state.apply_gradients(grads=ls_grads1)
+
+    return [new_pass, new_rev, new_ls]
+
   dataset_size = len(dataset)
   evalset_size = len(evalset)
 
@@ -82,6 +97,11 @@ def train(states, dataset, evalset):
   # need to skip a batch that isn't fixed size
   skip_last_batch = dataset_size % BATCH_SIZE != 0
   val_skip_last_batch = evalset_size % BATCH_SIZE != 0
+
+  # Replicate models
+  pass_state = flax.jax_utils.replicate(pass_state)
+  rev_state = flax.jax_utils.replicate(rev_state)
+  ls_state = flax.jax_utils.replicate(ls_state)
 
   for epoch in range(EPOCHS):
     batches_inds = generate_indices(dataset_size, BATCH_SIZE)
@@ -95,6 +115,7 @@ def train(states, dataset, evalset):
       # Split tokens and masks into these mbs
       mbs = [partition_microbatches(pass_batch, microbatch_inds),
              partition_microbatches(rev_batch, microbatch_inds)]
+        
 
       encs, batch_loss, batch_acc = encode_and_val(mbs, pass_state,
                                                    rev_state, ls_state)
@@ -108,38 +129,11 @@ def train(states, dataset, evalset):
       # Split microbatch inds across devices
       microbatch_inds = device_split(np.stack(microbatch_inds))
 
-      accum_grad_func = jax.pmap(accum_grads_pass,
-                                 static_broadcasted_argnums=[2,3,4])
-
-      pass_state = flax.jax_utils.replicate(pass_state)
-      ls_state = flax.jax_utils.replicate(ls_state)
-      pass_grads, ls_grads1 = accum_grad_func(pass_state, ls_state,
-                                              (pass_batch, rev_batch), 
-                                              pass_encs, rev_encs,
-                                              microbatch_inds)
-      pass_state = flax.jax_utils.unreplicate(pass_state)
-
-      accum_grad_func = jax.pmap(accum_grads_rev,
-                                 static_broadcasted_argnums=[2,3,4])
-
-      rev_state = flax.jax_utils.replicate(rev_state)
-      rev_grads, ls_grads2 = accum_grad_func(rev_state, ls_state,
-                                             (pass_batch, rev_batch),
-                                             pass_encs, rev_encs,
-                                             microbatch_inds)
-      rev_state = flax.jax_utils.unreplicate(rev_state)
-      ls_state = flax.jax_utils.unreplicate(ls_state)
-      
-      
-      # Accumulate gradients
-      pass_grads = jax.tree_map(lambda x: x.mean(0), pass_grads)
-      rev_grads = jax.tree_map(lambda x: x.mean(0), rev_grads)
-      ls_grads = jax.tree_map(lambda x: x.mean(0), tree_add(ls_grads1,
-                                                           ls_grads2))
-      
-      pass_state = pass_state.apply_gradients(grads = pass_grads)
-      rev_state = rev_state.apply_gradients(grads = rev_grads)
-      ls_state = ls_state.apply_gradients(grads = ls_grads)
+      p_train_step = jax.pmap(train_step, static_broadcasted_argnums=[3,4,5],
+                                donate_argnums=[0,1,2,6])
+      pass_state, rev_state, ls_state = p_train_step(pass_state, rev_state, ls_state,
+                                                    (pass_batch, rev_batch), pass_encs, rev_encs,
+                                                    microbatch_inds)
 
       ls_state = clip_logit(ls_state)
 
@@ -154,10 +148,12 @@ def train(states, dataset, evalset):
           
       if SAVE_CHECKPOINTS and (total_steps % CHECKPOINT_INTERVAL == 0):
         print("SAVING...")
-        save_checkpoint([pass_state, rev_state, ls_state])
+        unrp = flax.jax_utils.unreplicate
+        states = [unrp(pass_state), unrp(rev_state), unrp(ls_state)]
+        save_checkpoint(states)
         # Once every 10 saves, save copied backup
         if total_steps % (10 * CHECKPOINT_INTERVAL) == 0:
-          save_checkpoint([pass_state, rev_state, ls_state],
+          save_checkpoint(states,
                           "/checkpoints", str(total_steps))
 
       if DO_VALIDATE and (total_steps % VALIDATE_INTERVAL == 0):
@@ -187,5 +183,4 @@ def train(states, dataset, evalset):
           wandb.log({"Acc/validation": val_acc})
 
       total_steps += 1
-      xla._xla_callable.cache_clear()
 
