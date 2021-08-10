@@ -6,7 +6,7 @@ EPOCHS = 100
 BATCH_SIZE = 512 # Contrastive Batch
 MICROBATCH_SIZE = 4 # Minibatches in contrastive  batch
 
-LOG_INTERVAL = 2
+LOG_INTERVAL = 1
 CHECKPOINT_INTERVAL = 15
 VALIDATE_INTERVAL = 15
 

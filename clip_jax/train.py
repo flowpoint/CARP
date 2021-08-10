@@ -131,10 +131,10 @@ def train(states, dataset, evalset):
       ls_state = flax.jax_utils.unreplicate(ls_state)
       
       
-      # Sum up the accumulated gradients
-      pass_grads = jax.tree_map(lambda x: x.sum(0), pass_grads)
-      rev_grads = jax.tree_map(lambda x: x.sum(0), rev_grads)
-      ls_grads = jax.tree_map(lambda x: x.sum(0), tree_add(ls_grads1,
+      # Accumulate gradients
+      pass_grads = jax.tree_map(lambda x: x.mean(0), pass_grads)
+      rev_grads = jax.tree_map(lambda x: x.mean(0), rev_grads)
+      ls_grads = jax.tree_map(lambda x: x.mean(0), tree_add(ls_grads1,
                                                            ls_grads2))
       
       pass_state = pass_state.apply_gradients(grads = pass_grads)
