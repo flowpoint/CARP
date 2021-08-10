@@ -156,7 +156,7 @@ def train(states, dataset, evalset):
         # Once every 10 saves, save copied backup
         if total_steps % (10 * CHECKPOINT_INTERVAL) == 0:
           save_checkpoint([pass_state, rev_state, ls_state],
-                          "checkpoints", str(total_steps))
+                          "/checkpoints", str(total_steps))
 
       if total_steps % VALIDATE_INTERVAL == 0:
         print("VALIDATING...")
