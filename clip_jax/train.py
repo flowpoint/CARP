@@ -99,7 +99,7 @@ def train(states, dataset, evalset):
                                             batch, pass_encs, rev_encs, microbatch_inds)
     rev_grads = jax.lax.pmean(rev_grads, "batch")
 
-    ls_grads1 = tree_add(ls_grads1, ls_grads2) # Combine gradients for logit scale
+    #ls_grads1 = tree_add(ls_grads1, ls_grads2) # Combine gradients for logit scale
     ls_grads1 = jax.lax.pmean(ls_grads1, "batch")
 
     new_pass = pass_state.apply_gradients(grads=pass_grads)
