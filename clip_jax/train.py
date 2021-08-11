@@ -149,7 +149,6 @@ def train(states, dataset, evalset):
       # Split microbatch inds across devices
       microbatch_inds = device_split(np.stack(microbatch_inds))
 
-      print(ls_state.params)
       # Old model states are donated, since they will be replaced
       p_train_step = jax.pmap(train_step, "batch",
                                 static_broadcasted_argnums=[3,4,5],
