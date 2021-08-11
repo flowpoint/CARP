@@ -149,6 +149,7 @@ def train(states, dataset, evalset):
       # Split microbatch inds across devices
       microbatch_inds = device_split(np.stack(microbatch_inds))
 
+      print(ls_state.params)
       # Old model states are donated, since they will be replaced
       p_train_step = jax.pmap(train_step, "batch",
                                 static_broadcasted_argnums=[3,4,5],
@@ -157,8 +158,7 @@ def train(states, dataset, evalset):
                                                     (pass_batch, rev_batch), pass_encs, rev_encs,
                                                     microbatch_inds)
 
-      ls_state = clip_logit(ls_state)
-
+      #ls_state = clip_logit(ls_state)
       
       # Logging (in terminal and WANDB)
       if total_steps % LOG_INTERVAL == 0:
