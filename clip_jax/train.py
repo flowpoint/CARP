@@ -11,7 +11,16 @@ from util import generate_indices, clip_logit, save_checkpoint
 from util import device_split, device_join, tree_add
 from train_util import pass_fwd, rev_fwd, accum_grads_pass, accum_grads_rev
 
+# Dimensions:
+# B: Batch
+# MB: Microbatch
+# NMB: All microbatches
+# N_1: sequence length for passages
+# N_2: sequence length for reviews
+# D: Latent dim
+# T: Different tokenizer outputs
 
+# Take model states (as shown in tuple below), dataset and validation set
 def train(states, dataset, evalset):
   pass_state, rev_state, ls_state = states
 
@@ -19,7 +28,7 @@ def train(states, dataset, evalset):
   def tok(string_batch):
     return tokenizer.tok(string_batch)
   
-  # Get batch tokens and masks
+  # Get tokenizer output over batch specified by inds
   def get_batch_tokens(dataset, inds):
     batch = [dataset[ind] for ind in inds]
     pass_batch = [pair[0] for pair in batch]
@@ -30,12 +39,16 @@ def train(states, dataset, evalset):
 
     return [pass_ids, rev_ids]
   
+  # Without gradients, encodes minibatches using model
+  # Returns encodings, loss and accuracy 
+  # Assumes states are replicated
   def encode_and_val(mbs, pass_state, rev_state, ls_state):
     # mbs (microbatches) assumed NMB x T x MB x N_i
     # NMB is num microbatches
     # MB is microbatch size
     pass_mbs, rev_mbs = mbs # -> both (NMB x T x MB x N_i)
 
+    # Assuming mbs is a list, iterates through it and encodes all microbatches
     def get_encs(mbs, state):
       NMB = len(mbs)
       encodings = np.zeros((NMB, MICROBATCH_SIZE, LATENT_DIM))
@@ -45,8 +58,10 @@ def train(states, dataset, evalset):
       encodings = jax.lax.fori_loop(0, NMB, update_inplace, encodings)
       return np.concatenate(encodings) # -> (B x D)
 
+    # Each device encodes share of microbatches
     get_encs = jax.pmap(get_encs)
 
+    # Split passage microbatches between devices and encode
     pass_mbs = device_split(pass_mbs)
     pass_encs = get_encs(pass_mbs, pass_state)
     pass_encs = device_join(pass_encs)
@@ -57,6 +72,7 @@ def train(states, dataset, evalset):
 
     encs = np.stack((pass_encs, rev_encs))
 
+    # Unreplicate logit scale and calculate overall loss for the batch
     ls_unrp = flax.jax_utils.unreplicate(ls_state)
     loss, acc = ContrastiveLoss().apply(ls_unrp.params, encs)
 
@@ -70,17 +86,20 @@ def train(states, dataset, evalset):
     mbs = [batch[:,:,ind,:] for ind in inds]
     return np.concatenate(mbs) # -> NMB x T x MB x N
 
+  # Performs train step with model states, batch, already computed encodings 
+  # and microbatch indices
   def train_step(pass_state, rev_state, ls_state, batch, pass_encs, rev_encs, microbatch_inds):
     # Get gradients for passage encoder
     pass_grads, ls_grads1 = accum_grads_pass(pass_state, ls_state,
                                             batch, pass_encs, rev_encs, microbatch_inds)
     pass_grads = jax.lax.pmean(pass_grads, "batch")
 
+    # Gradients for review encoder
     rev_grads, ls_grads2 = accum_grads_rev(rev_state, ls_state,
                                             batch, pass_encs, rev_encs, microbatch_inds)
     rev_grads = jax.lax.pmean(rev_grads, "batch")
 
-    ls_grads1 = tree_add(ls_grads1, ls_grads2)
+    ls_grads1 = tree_add(ls_grads1, ls_grads2) # Combine gradients for logit scale
     ls_grads1 = jax.lax.pmean(ls_grads1, "batch")
 
     new_pass = pass_state.apply_gradients(grads=pass_grads)
@@ -117,7 +136,7 @@ def train(states, dataset, evalset):
       mbs = [partition_microbatches(pass_batch, microbatch_inds),
              partition_microbatches(rev_batch, microbatch_inds)]
         
-
+      # pre-compute encodings and get overall loss/acc over batch
       encs, batch_loss, batch_acc = encode_and_val(mbs, pass_state,
                                                    rev_state, ls_state)
       pass_encs, rev_encs = encs
@@ -130,6 +149,7 @@ def train(states, dataset, evalset):
       # Split microbatch inds across devices
       microbatch_inds = device_split(np.stack(microbatch_inds))
 
+      # Old model states are donated, since they will be replaced
       p_train_step = jax.pmap(train_step, "batch",
                                 static_broadcasted_argnums=[3,4,5],
                                 donate_argnums=[0,1,2,6])
