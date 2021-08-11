@@ -22,12 +22,10 @@ def generate_indices(total_size, batch_size, shuffle = True):
   return chunk(inds, batch_size)
 
 # Clip parameters within state tree to below defined values
-@jax.jit
-def clip_logit(logit_scale):
-  clamp_min = math.log(1/100)
-  clamp_max = math.log(100)
-  return jax.tree_map(lambda x: np.clip(x, clamp_min, clamp_max),
-                      logit_scale)
+def clip_logit(ls_state):
+  clamp_min = np.log(1/100)
+  clamp_max = np.log(100)
+  return jax.tree_map(lambda x: np.clip(x, clamp_min, clamp_max), ls_state)
 
 # Add together two trees
 @jax.jit
