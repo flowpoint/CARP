@@ -5,13 +5,13 @@ TOKENIZER_OUTPUTS = 4 # Called T in other files (how many things does tokenizer 
 
 EPOCHS = 100
 BATCH_SIZE = 512 # Contrastive Batch
-MICROBATCH_SIZE = 16 # Minibatches in contrastive  batch
+MICROBATCH_SIZE = 8 # Minibatches in contrastive  batch
 
 LOG_INTERVAL = 1
 CHECKPOINT_INTERVAL = 15
 VALIDATE_INTERVAL = 15
 
-LOAD_CHECKPOINT = False
+LOAD_CHECKPOINT = True
 SAVE_CHECKPOINTS = True
 DO_VALIDATE = True
 DO_LOG = True
