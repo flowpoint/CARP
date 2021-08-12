@@ -79,6 +79,12 @@ class TextEncoder(nn.Module):
     x = nn.Dense(LATENT_DIM)(x) # [B x D]
     return x # -> [B, D]
 
+def cross_entropy(logits, labels, axis = -1):
+    logprobs = jax.nn.log_softmax(logits, axis=axis)
+    nll = np.take_along_axis(logprobs, np.expand_dims(labels, axis=axis), axis = axis)
+    ce = -np.mean(nll)
+    return ce
+
 class ContrastiveLoss(nn.Module):
   @nn.compact
   def __call__(self, inp): # Assumed encodings
@@ -88,14 +94,15 @@ class ContrastiveLoss(nn.Module):
     x = l2norm(x)
     y = l2norm(y)
 
-    scale = self.param('logit_scale',
+    scale = self.param('logit_scale', # aka temperature
                        lambda rng, shape: np.ones(shape) * np.log(1 / 0.07), [])
     
     logits = x @ y.T * np.exp(scale)
     labels = np.arange(x.shape[0])
 
-    loss_x = optax.softmax_cross_entropy(logits, labels).mean()
-    loss_y = optax.softmax_cross_entropy(np.transpose(logits), labels).mean()
+    loss_x = cross_entropy(logits, labels, axis = 1)
+    loss_y = cross_entropy(np.transpose(logits), labels, axis = 1)
+
     acc_x = np.sum((np.argmax(logits, axis = 1) == labels))
     acc_y = np.sum((np.argmax(logits, axis = 0) == labels))
 
