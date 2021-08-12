@@ -1,7 +1,7 @@
-N_CTX = 256
+N_CTX = 512
 EPOCHS = 10
-BATCH_SIZE = 1024 # Contrastive batch
-MICROBATCH_SIZE = 32 # Minibatches in contrastive batch
+BATCH_SIZE = 512 # Contrastive batch
+MICROBATCH_SIZE = 8 # Minibatches in contrastive batch
 
 # Size of encodings
 LATENT_DIM = 2048
@@ -17,9 +17,11 @@ LEARNING_RATE_TARGET = 1e-6
 
 LOG_INTERVAL = 2
 CHECKPOINT_INTERVAL = 15
-VALIDATE_INTERVAL = 15
+VALIDATE_INTERVAL = 50
 LOAD_CHECKPOINT = False
 USE_HALF = False
 DO_LOG = True # Log to WANDB?
 # For dataset
 VALIDATION_SIZE = 1000
+USE_BUCKET = False
+

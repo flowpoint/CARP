@@ -140,7 +140,7 @@ def train(model, dataset, evalset):
 
 from model import ContrastiveModel
 from encoder import TextEncoder
-from load_crit_circle import get_dataset
+from dataloading import get_dataset
 import util
 
 if __name__ == "__main__":
