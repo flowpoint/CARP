@@ -43,7 +43,7 @@ class FlaxTokenizer():
     position_ids = np.broadcast_to(np.arange(n)[None, :], (b, n))
     res = np.stack([res_dict['input_ids'],
                      res_dict['attention_mask'],
-                     position_ids)
+                     position_ids])
                      #res_dict['token_type_ids'],
                      #position_ids])
     return res
