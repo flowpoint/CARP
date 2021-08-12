@@ -23,7 +23,7 @@ def make_train_state(state_dict, apply_fn):
 
 # Load/create params
 if LOAD_CHECKPOINT:
-  pass_params, rev_params, logit_scale, pass_opt_state, rev_opt_state, ls_opt_state = load_checkpoint(6)
+  pass_state, rev_state, ls_state = load_checkpoint(6)
 else:
   # Create model params
   inputs = np.ones((TOKENIZER_OUTPUTS, MICROBATCH_SIZE, N_CTX))
@@ -37,12 +37,12 @@ else:
   pass_params = load_pretrained(pass_params)
   rev_params = load_pretrained(rev_params)
 
-  
-# Create train states
-print("Creating train states...")
-pass_state = make_train_state(pass_params, TextEncoder().__call__)
-rev_state = make_train_state(rev_params, TextEncoder().__call__)
-ls_state = make_train_state(logit_scale, ContrastiveLoss().__call__)
+  # Create train states
+  print("Creating train states...")
+  pass_state = make_train_state(pass_params, TextEncoder().__call__)
+  rev_state = make_train_state(rev_params, TextEncoder().__call__)
+  ls_state = make_train_state(logit_scale, ContrastiveLoss().__call__)
+
 states = [pass_state, rev_state, ls_state]
 
 print("Loading dataset...")
