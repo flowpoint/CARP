@@ -157,7 +157,7 @@ def train(states, dataset, evalset):
                                                     (pass_batch, rev_batch), pass_encs, rev_encs,
                                                     microbatch_inds)
 
-      #ls_state = clip_logit(ls_state)
+      ls_state = clip_logit(ls_state)
       
       # Logging (in terminal and WANDB)
       if total_steps % LOG_INTERVAL == 0:

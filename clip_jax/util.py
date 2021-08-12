@@ -25,7 +25,12 @@ def generate_indices(total_size, batch_size, shuffle = True):
 def clip_logit(ls_state):
   clamp_min = np.log(1/100)
   clamp_max = np.log(100)
-  return jax.tree_map(lambda x: np.clip(x, clamp_min, clamp_max), ls_state)
+  clamp_fn = lambda x: np.clip(x, clamp_min, clamp_max)
+  return ls_state.replace(
+      step=ls_state.step,
+      params=jax.tree_map(clamp_fn, ls_state.params),
+      opt_state=ls_state.opt_state
+  )
 
 # Add together two trees
 @jax.jit
