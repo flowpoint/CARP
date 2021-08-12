@@ -58,7 +58,7 @@ class LMEmbedder(nn.Module):
   # Input assumed as tuple of everything the HF model needs
   def __call__(self, inp):
     mask = inp[1]
-    out = self.model(inp[0], inp[1], position_ids = inp[2],
+    out = self.model(inp[0], inp[1], None, inp[2],
                         output_hidden_states = True)
     # [1] gets hidden states
     # [-2] gets last hidden state ([-1] is logits)
