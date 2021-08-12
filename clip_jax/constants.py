@@ -4,7 +4,7 @@ TAU_PLUS = 0.1 # Constant for hard negative sampling
 
 EPOCHS = 100
 BATCH_SIZE = 512 # Contrastive Batch
-MICROBATCH_SIZE = 8 # Minibatches in contrastive  batch
+MICROBATCH_SIZE = 64 # Minibatches in contrastive  batch
 
 LOG_INTERVAL = 1
 CHECKPOINT_INTERVAL = 15
