@@ -13,9 +13,10 @@ from transformers.models.bert.modeling_flax_bert import FlaxBertForMaskedLMModul
 
 special_token_dict = {'cls_token':'[CLS]', 'mask_token':'[quote]'}
 model_name = "roberta-large"
+tokenizer_name = "bert-base-uncased"
 
 def get_model_config():
-  tokenizer = transformers.AutoTokenizer.from_pretrained(model_name)
+  tokenizer = transformers.AutoTokenizer.from_pretrained(tokenizer_name)
   config = transformers.RobertaConfig()
   tokenizer.add_special_tokens(special_token_dict)
   config.vocab_size = len(tokenizer)
@@ -24,7 +25,7 @@ def get_model_config():
 
 class FlaxTokenizer():
   def __init__(self):
-    self.tokenizer = transformers.AutoTokenizer.from_pretrained(model_name)
+    self.tokenizer = transformers.AutoTokenizer.from_pretrained(tokenizer_name)
     self.tokenizer.add_special_tokens(special_token_dict)
   
   def add_cls(self, string_batch):
@@ -43,9 +44,8 @@ class FlaxTokenizer():
     position_ids = np.broadcast_to(np.arange(n)[None, :], (b, n))
     res = np.stack([res_dict['input_ids'],
                      res_dict['attention_mask'],
+                     res_dict['token_type_ids'],
                      position_ids])
-                     #res_dict['token_type_ids'],
-                     #position_ids])
     return res
 
 from transformers.models.bert.modeling_flax_bert import FlaxBertForMaskedLMModule
@@ -58,7 +58,7 @@ class LMEmbedder(nn.Module):
   # Input assumed as tuple of everything the HF model needs
   def __call__(self, inp):
     mask = inp[1]
-    out = self.model(inp[0], inp[1], None, inp[2],
+    out = self.model(*inp,
                         output_hidden_states = True)
     # [1] gets hidden states
     # [-2] gets last hidden state ([-1] is logits)
