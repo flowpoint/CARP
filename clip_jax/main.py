@@ -23,7 +23,7 @@ def make_train_state(state_dict, apply_fn):
 
 # Load/create params
 if LOAD_CHECKPOINT:
-  pass_state, rev_state, ls_state = load_checkpoint(6)
+  pass_state, rev_state, ls_state = load_checkpoint(3)
 else:
   # Create model params
   inputs = np.ones((TOKENIZER_OUTPUTS, MICROBATCH_SIZE, N_CTX))
