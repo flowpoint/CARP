@@ -1,6 +1,7 @@
 LATENT_DIM = 2048
 N_CTX = 512
 TAU_PLUS = 0.1 # Constant for hard negative sampling
+TOKENIZER_OUTPUTS = 3 # Called T in other files (how many things does tokenizer give?)
 
 EPOCHS = 100
 BATCH_SIZE = 512 # Contrastive Batch
