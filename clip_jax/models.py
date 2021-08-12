@@ -12,11 +12,11 @@ from util import l2norm
 from transformers.models.bert.modeling_flax_bert import FlaxBertForMaskedLMModule
 
 special_token_dict = {'cls_token':'[CLS]', 'mask_token':'[quote]'}
-model_name = "bert-base-uncased"
+model_name = "roberta-large"
 
 def get_model_config():
   tokenizer = transformers.AutoTokenizer.from_pretrained(model_name)
-  config = transformers.BertConfig()
+  config = transformers.RobertaConfig()
   tokenizer.add_special_tokens(special_token_dict)
   config.vocab_size = len(tokenizer)
 
@@ -48,10 +48,11 @@ class FlaxTokenizer():
     return res
 
 from transformers.models.bert.modeling_flax_bert import FlaxBertForMaskedLMModule
+from transformers.models.roberta.modeling_flax_roberta import FlaxRobertaForMaskedLMModule
 
 class LMEmbedder(nn.Module):
   def setup(self):
-    self.model = FlaxBertForMaskedLMModule(get_model_config())
+    self.model = FlaxRobertaForMaskedLMModule(get_model_config())
 
   # Input assumed as tuple of everything the HF model needs
   def __call__(self, inp):
@@ -104,7 +105,7 @@ def load_pretrained(state):
   if(type(state) != dict): # It's either frozen or not
     state = state.unfreeze()
  
-  model_class = transformers.FlaxBertForMaskedLM
+  model_class = transformers.FlaxRobertaForMaskedLM
   cfg = get_model_config()
   pretrained_model = model_class(cfg).from_pretrained(model_name, config = cfg, ignore_mismatched_sizes = True)
   
