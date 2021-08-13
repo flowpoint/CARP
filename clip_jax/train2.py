@@ -32,7 +32,7 @@ def make_train_state(state_dict, apply_fn):
 
 print("Initialize Models")
 if LOAD_CHECKPOINT:
-    pass_state, rev_state, ls_state = load_checkpoint(3)
+    pass_state, rev_state, ls_state = util.load_checkpoint(3)
 else:
     inputs = np.ones((TOKENIZER_OUTPUTS, 2, N_CTX))
     loss_inputs = np.ones((2, 2, LATENT_DIM))
