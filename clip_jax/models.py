@@ -122,6 +122,15 @@ class ContrastiveLoss2(nn.Module):
         return loss, acc
         
 
+class TextEncoder2(nn.Module):
+    # -> [B, T, N]
+    @nn.compact
+    def __call__(self, x):
+        x = eo.rearrange(x, 'B T N -> T B N')
+        x = LMEmbedder()(x)
+        x = nn.Dense(LATENT_DIM)(x)
+        return x # -> [B, D]
+
 # Loading pre trained HF checkpoints is kind of tricky
 # Needs state of text encoder
 def load_pretrained(state):

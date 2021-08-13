@@ -11,8 +11,9 @@ import optax
 from flax.training.train_state import TrainState
 
 from constants import *
-from models import TextEncoder, FlaxTokenizer
+from models import FlaxTokenizer
 from models import ContrastiveLoss2 as ContrastiveLoss
+from models import TextEncoder2 as TextEncoder
 import models
 import util
 import dataloading
