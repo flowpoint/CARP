@@ -226,7 +226,7 @@ for epoch in range(EPOCHS):
         if SAVE_CHECKPOINTS and (total_steps % CHECKPOINT_INTERVAL == 0):
             print("SAVING...")
             unrp = flax.jax_utils.unreplicate
-            states = [unrp(pass_state), unrp(rev_state), unrp(ls_state)]
+            states = [unrp(pass_state).params, unrp(rev_state).params, unrp(ls_state).params]
             util.save_checkpoint(states)
             # Once every 10 saves, save copied backup
             if total_steps % (10 * CHECKPOINT_INTERVAL) == 0:
