@@ -216,7 +216,7 @@ for epoch in range(EPOCHS):
 
         # Logging (in terminal and WANDB)
         if total_steps % LOG_INTERVAL == 0:
-        print("EPOCH [" + str(epoch) + "/" + str(EPOCHS) + 
+            print("EPOCH [" + str(epoch) + "/" + str(EPOCHS) + 
               "] Batch Loss: " + str(batch_loss) + ", Batch Acc: " + str(batch_acc))
         if DO_LOG:
             wandb.log({"Loss/train": batch_loss,
