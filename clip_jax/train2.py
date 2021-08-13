@@ -53,7 +53,7 @@ else:
 
 states = [pass_state, rev_state, ls_state]
 
-dataset, evalset = get_dataset()
+dataset, evalset = dataloading.get_dataset()
 
 if DO_LOG:
     wandb.init(project="CARP-JAX", entity = 'shahbuland', resume = False)
