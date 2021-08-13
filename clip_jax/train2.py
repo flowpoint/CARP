@@ -7,6 +7,7 @@ import wandb
 from functools import partial
 from jax import pmap, vmap
 from jax.lax import psum
+import optax
 
 from constants import *
 from models import TextEncoder
