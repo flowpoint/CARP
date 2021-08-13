@@ -21,7 +21,7 @@ rng = jax.random.PRNGKey(0)
 rng1, rng2 = jax.random.split(rng, 2)
 
 optimizer = optax.adamw(
-    learning_rate = get_scheduling_fn(),
+    learning_rate = util.get_scheduling_fn(),
     weight_decay = 0
 )
 
