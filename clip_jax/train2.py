@@ -104,7 +104,7 @@ def contrastive_grads(passages, reviews):
         sim = np.einsum("i d, j d -> i j", pass_encs, rev_encs)
         logit_scale = ls_state.params
         logit_scale = jax.tree_map(lambda a: a[0], logit_scale)
-        loss, acc = ContrastiveLoss().apply(logit_scale, sim)
+        loss, acc = ContrastiveLoss().apply(logit_scale, sim, np.arange(BATCH_SIZE))
         return loss, acc
 
     batch_loss, batch_acc = batch_stats(pass_encs, rev_encs)
@@ -113,14 +113,14 @@ def contrastive_grads(passages, reviews):
         shard_pass_encs = TextEncoder().apply(pass_params, sequences)
         shard_pass_encs = util.l2norm(shard_pass_encs)
         sim = np.einsum("i d, j d -> i j", shard_pass_encs, rev_encs)
-        loss, _ = ContrastiveLoss().apply(logit_scale, sim)
+        loss, _ = ContrastiveLoss().apply(logit_scale, sim, labels)
         return loss
 
     def rev_loss(rev_params, logit_scale, sequences, labels):
         shard_rev_encs = TextEncoder().apply(rev_params, sequences)
         shard_rev_encs = util.l2norm(shard_rev_encs)
         sim = np.einsum("i d, j d -> i j", shard_rev_encs, pass_encs)
-        loss, _ = ContrastiveLoss().apply(logit_scale, sim)
+        loss, _ = ContrastiveLoss().apply(logit_scale, sim, labels)
         return loss
 
     # Input data split across TPUs
