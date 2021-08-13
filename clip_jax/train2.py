@@ -8,6 +8,7 @@ from functools import partial
 from jax import pmap, vmap
 from jax.lax import psum
 import optax
+from flax.training.train_state import TrainState
 
 from constants import *
 from models import TextEncoder, FlaxTokenizer
