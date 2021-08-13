@@ -12,6 +12,7 @@ import optax
 from constants import *
 from models import TextEncoder, FlaxTokenizer
 from models import ContrastiveLoss2 as ContrastiveLoss
+import models
 import util
 import dataloading
 
