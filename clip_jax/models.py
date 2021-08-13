@@ -108,6 +108,20 @@ class ContrastiveLoss(nn.Module):
 
     return (loss_x + loss_y) / 2, (acc_x + acc_y) / x.shape[0] / 2
 
+# Same as above but divided to calculate losses seperately
+# Doesn't do normalization
+class ContrastiveLoss2(nn.Module):
+    def setup(self):
+        self.scale = self.param('logit_scale', 
+                                lambda rng, shape: np.ones(shape) * np.log(1 / 0.07), [])
+
+    def __call__(self, logits, labels):
+        logits = logits * np.exp(self.scale)
+        loss = cross_entropy(logits, labels, axis=1)
+        acc = np.mean(np.argmax(logits, axis = 0) == labels)
+        return loss, acc
+        
+
 # Loading pre trained HF checkpoints is kind of tricky
 # Needs state of text encoder
 def load_pretrained(state):
