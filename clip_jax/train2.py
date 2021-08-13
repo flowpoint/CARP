@@ -37,7 +37,7 @@ print("Initialize Models")
 if LOAD_CHECKPOINT:
     pass_state, rev_state, ls_state = util.load_checkpoint(3)
 else:
-    inputs = np.ones((TOKENIZER_OUTPUTS, 2, N_CTX))
+    inputs = np.ones((2, TOKENIZER_OUTPUTS, N_CTX))
     loss_inputs = np.ones((BATCH_SIZE, BATCH_SIZE))
     
     logit_scale = ContrastiveLoss().init(rng, loss_inputs, np.arange(BATCH_SIZE))
@@ -89,7 +89,7 @@ def validate_batch(passages, reviews):
 # Returns:
 #   grads for both encoders
 def contrastive_grads(passages, reviews):
-    b = texts.shape[0]
+    b = passages.shape[0]
     indices = np.arange(b) # cross-ent labels
 
     passages = eo.rearrange(passages, '(cores examples) t tokens -> corex examples t tokens', cores=CORES)
