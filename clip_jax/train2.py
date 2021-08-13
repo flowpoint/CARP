@@ -10,7 +10,7 @@ from jax.lax import psum
 import optax
 
 from constants import *
-from models import TextEncoder
+from models import TextEncoder, FlaxTokenizer
 from models import ContrastiveLoss2 as ContrastiveLoss
 import util
 import dataloading
