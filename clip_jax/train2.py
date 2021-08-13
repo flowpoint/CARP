@@ -37,7 +37,7 @@ else:
     inputs = np.ones((TOKENIZER_OUTPUTS, 2, N_CTX))
     loss_inputs = np.ones((2, 2, LATENT_DIM))
     
-    logit_scale = ContrastiveLoss().init(rng, loss_inputs, np.arange(BATCH_SIZE)
+    logit_scale = ContrastiveLoss().init(rng, loss_inputs, np.arange(BATCH_SIZE))
     pass_params = TextEncoder().init(rng1, inputs)
     rev_params = TextEncoder().init(rng2, inputs)
 
