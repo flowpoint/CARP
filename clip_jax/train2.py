@@ -92,8 +92,8 @@ def contrastive_grads(passages, reviews):
     b = passages.shape[0]
     indices = np.arange(b) # cross-ent labels
 
-    passages = eo.rearrange(passages, '(cores examples) t tokens -> corex examples t tokens', cores=CORES)
-    reviews = eo.rearrange(reviews, '(cores examples) t tokens -> corex examples t tokens', cores=CORES)
+    passages = eo.rearrange(passages, '(cores examples) t tokens -> cores examples t tokens', cores=CORES)
+    reviews = eo.rearrange(reviews, '(cores examples) t tokens -> cores examples t tokens', cores=CORES)
     
     pass_encs = pmap(TextEncoder().apply)(pass_state.params, passages)
     pass_encs = eo.rearrance(pass_encs, "cores examples features -> (cores examples) features")
