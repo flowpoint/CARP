@@ -207,7 +207,7 @@ val_skip_last_batch = evalset_size % BATCH_SIZE != 0
 total_steps = 0
 
 for epoch in range(EPOCHS):
-    batches_inds = generate_indices(dataset_size, BATCH_SIZE)
+    batches_inds = util.generate_indices(dataset_size, BATCH_SIZE)
     if skip_last_batch: batches_inds = batches_inds[:-1]
     
     for batch_inds in batches_inds:
