@@ -191,8 +191,8 @@ def get_batch_tokens(dataset, inds):
     pass_batch = [pair[0] for pair in batch]
     rev_batch = [pair[1] for pair in batch]
 
-    pass_ids = tok(pass_batch) # -> [B x T x N_1]
-    rev_ids = tok(rev_batch) # -> [B x T x N_2]
+    pass_ids = tok(pass_batch) # -> [T x B x N_1]
+    rev_ids = tok(rev_batch) # -> [T x B x N_2]
 
     return [pass_ids, rev_ids]
 
@@ -215,6 +215,10 @@ for epoch in range(EPOCHS):
     
     for batch_inds in batches_inds:
         passages, reviews = get_batch_tokens(dataset, batch_inds)
+        
+        passages = eo.rearrange(passages, 't b n -> b t n')
+        reviews = eo.rearrange(reviews, 't b n -> b t n')
+
         p_grads, r_grads, batch_loss, batch_acc = contrastive_grads(passages, reviews)
 
         pass_state = pass_state.apply_gradients(grads = p_grads)
