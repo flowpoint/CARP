@@ -133,7 +133,7 @@ def contrastive_grads(passages, reviews):
         # Grad calc across microbatches
         def microbatch(grad_accumulator, mcrobatch):
             seqs, inds = mcrobatch
-            train_loss_fn = pass_loss_and_embeddings
+            train_loss_fn = pass_loss
             val_grad_fn = jax.value_and_grad(train_loss_fn)
             loss, grad = val_grad_fn(pass_state.params, ls_state.params, seqs, inds)
             grad_accumulator = jax.tree_multimap(lambda a, b: a + b, grad_accumulator, grad)
@@ -155,7 +155,7 @@ def contrastive_grads(passages, reviews):
         # Grad calc across microbatches
         def microbatch(grad_accumulator, mcrobatch):
             seqs, inds = mcrobatch
-            train_loss_fn = rev_loss_and_embeddings
+            train_loss_fn = rev_loss
             val_grad_fn = jax.value_and_grad(train_loss_fn)
             loss, grad = val_grad_fn(rev_state.params, ls_state.params, seqs, inds)
             grad_accumulator = jax.tree_multimap(lambda a, b: a + b, grad_accumulator, grad)
