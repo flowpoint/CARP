@@ -62,7 +62,7 @@ class LMEmbedder(nn.Module):
                         output_hidden_states = True)
     # [1] gets hidden states
     # [-2] gets last hidden state ([-1] is logits)
-    hidden = out[1][-2]
+    hidden = out[-1][-2]
 
     # Mask out pad tokens and sum
     sum_mask = eo.repeat(mask, 'b n -> b n d', d = hidden.shape[-1])
