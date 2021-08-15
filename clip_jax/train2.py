@@ -98,7 +98,7 @@ def contrastive_grads(passages, reviews):
     reviews = eo.rearrange(reviews, '(cores examples) t tokens -> cores examples t tokens', cores=CORES)
     
     pass_encs = pmap(TextEncoder().apply)(pass_state.params, passages)
-    pass_encs = eo.rearrance(pass_encs, "cores examples features -> (cores examples) features")
+    pass_encs = eo.rearrange(pass_encs, "cores examples features -> (cores examples) features")
     pass_encs = util.l2norm(pass_encs)
 
     rev_encs = pmap(TextEncoder().apply)(rev_state.params, reviews)
