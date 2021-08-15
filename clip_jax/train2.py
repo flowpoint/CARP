@@ -91,9 +91,8 @@ def validate_batch(passages, reviews):
 def contrastive_grads(passages, reviews):
     b = passages.shape[0]
     indices = np.arange(b) # cross-ent labels
+    indices = eo.rearrange(indices, "(cores examples) -> cores examples", cores = CORES)
 
-    print(passages.shape)
-    print(reviews.shape)
     passages = eo.rearrange(passages, '(cores examples) t tokens -> cores examples t tokens', cores=CORES)
     reviews = eo.rearrange(reviews, '(cores examples) t tokens -> cores examples t tokens', cores=CORES)
     
