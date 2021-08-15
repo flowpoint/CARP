@@ -128,7 +128,7 @@ def contrastive_grads(passages, reviews):
         return loss
 
     # Input data split across TPUs
-    @partial(pmap, axis_name='cores')
+    @pmap
     def pass_grads(sequences, indices):
         # Grad calc across microbatches
         def microbatch(grad_accumulator, mcrobatch):
@@ -150,7 +150,7 @@ def contrastive_grads(passages, reviews):
         grad = jax.lax.pmean(grad, "cores")
         return grad
 
-    @partial(pmap, axis_name='cores')
+    @pmap
     def rev_grads(sequences, indices):
         # Grad calc across microbatches
         def microbatch(grad_accumulator, mcrobatch):
