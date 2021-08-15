@@ -112,7 +112,8 @@ def contrastive_grads(passages, reviews):
         return loss, acc
 
     batch_loss, batch_acc = batch_stats(pass_encs, rev_encs)
-    
+   
+    @pmap
     def pass_loss(pass_params, logit_scale, sequences, labels):
         shard_pass_encs = TextEncoder().apply(pass_params, sequences)
         shard_pass_encs = util.l2norm(shard_pass_encs)
@@ -120,6 +121,7 @@ def contrastive_grads(passages, reviews):
         loss, _ = ContrastiveLoss().apply(logit_scale, sim, labels)
         return loss
 
+    @pmap
     def rev_loss(rev_params, logit_scale, sequences, labels):
         shard_rev_encs = TextEncoder().apply(rev_params, sequences)
         shard_rev_encs = util.l2norm(shard_rev_encs)
