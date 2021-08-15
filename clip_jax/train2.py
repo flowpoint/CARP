@@ -113,7 +113,6 @@ def contrastive_grads(passages, reviews):
 
     batch_loss, batch_acc = batch_stats(pass_encs, rev_encs)
    
-    @pmap
     def pass_loss(pass_params, logit_scale, sequences, labels):
         shard_pass_encs = TextEncoder().apply(pass_params, sequences)
         shard_pass_encs = util.l2norm(shard_pass_encs)
@@ -121,7 +120,6 @@ def contrastive_grads(passages, reviews):
         loss, _ = ContrastiveLoss().apply(logit_scale, sim, labels)
         return loss
 
-    @pmap
     def rev_loss(rev_params, logit_scale, sequences, labels):
         shard_rev_encs = TextEncoder().apply(rev_params, sequences)
         shard_rev_encs = util.l2norm(shard_rev_encs)
@@ -130,7 +128,7 @@ def contrastive_grads(passages, reviews):
         return loss
 
     # Input data split across TPUs
-    @pmap
+    @partial(pmap, axis_name = 'cores')
     def pass_grads(sequences, indices):
         # Grad calc across microbatches
         def microbatch(grad_accumulator, mcrobatch):
@@ -151,8 +149,8 @@ def contrastive_grads(passages, reviews):
                             (sequences, indices))
         grad = jax.lax.pmean(grad, "cores")
         return grad
-
-    @pmap
+    
+    @partial(pmap, axis_name = 'cores')
     def rev_grads(sequences, indices):
         # Grad calc across microbatches
         def microbatch(grad_accumulator, mcrobatch):
