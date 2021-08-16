@@ -54,10 +54,10 @@ def get_logit(dataset, batch_size):
     # Now have logits, passages and reviews
     # Normalize with softmax
 
-    conf = torch.softmax(logits, dim = 0)
+    conf = logits.softmax(1)
     # Find where it went wrong
     fails = []
-    for i, choice in enumerate(torch.argmax(logits, dim = 1)):
+    for i, choice in conf:
         if choice != i:
             fails.append(i)
     for i, fail in enumerate(fails):
@@ -66,3 +66,23 @@ def get_logit(dataset, batch_size):
         print("REVIEWS: (expected " + str(fail) + ")")
         for j, r in enumerate(reviews):
             print("(" + str(conf[fail][j].item()) + ") " + r)
+
+# Print formated logit given an unordered list of passages
+# and reviews
+def compute_logit(passages, reviews):
+    pass_tokens = tok(passages)
+    rev_tokens = tok(reviews)
+    pass_masks = pass_tokens['attention_mask']
+    rev_masks = rev_tokens['attention_mask']
+    pass_tokens = pass_tokens['input_ids']
+    rev_tokens = rev_tokens['input_ids']
+
+    logits = model.getLogits([pass_tokens, pass_masks],
+                            [rev_tokens, rev_masks])
+    conf = logits.softmax(1)
+
+    for i, row in enumerate(conf):
+        for j, col in enumerate(row):
+            print(str(i) + "-" + str(j) + ": " + str(round(col.item(), 2)))
+
+
