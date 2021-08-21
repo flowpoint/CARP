@@ -7,7 +7,7 @@ MICROBATCH_SIZE = 8 # Minibatches in contrastive batch
 LATENT_DIM = 2048
 
 # info on HF model being used
-MODEL_PATH = "google/electra-large-generator"
+MODEL_PATH = "microsoft/deberta-large"
 
 # training
 LR_RAMP_STEPS = 400
