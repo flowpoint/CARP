@@ -17,7 +17,7 @@ class TextEncoder(nn.Module):
         self.d_model = util.get_d_model(self)
 
         # Add cls token to model and tokenizer
-        self.tokenizer.add_special_tokens({'cls_token': '[CLS]'})
+        self.tokenizer.add_tokens(['[CLS]', '[quote]'])
         self.model.resize_token_embeddings(len(self.tokenizer))
 
     def add_cls(self, string_batch):
@@ -41,14 +41,16 @@ class TextEncoder(nn.Module):
         # in this second tuple, last elem is model output
         # we take second last hidden -> third last layer
         # size is always [batch, seq, 1536]
-
-        layers = out[1]
-        hidden = layers[-2]
+        
+        hidden = out[0]
+        #layers = out[-1]
+        #hidden = layers[-2]
         
         # Mask out pad tokens embeddings
         if mask_sum:
             emb_mask = mask.unsqueeze(2).repeat(1, 1, self.d_model)
             hidden = hidden * emb_mask
+
         y = hidden.sum(1)
         y = F.normalize(y)
         

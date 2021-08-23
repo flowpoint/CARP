@@ -10,6 +10,8 @@ from constants import *
 from util import chunk, generate_indices, get_scheduling_func
 from clock import Clock
 
+scaler = torch.cuda.amp.GradScaler()
+
 # Dataset assumed to be list of pairs on memory
 def train(model, dataset, evalset):
     # Tokenizes string batch using encoder tokenizer
@@ -72,30 +74,35 @@ def train(model, dataset, evalset):
             microbatch_inds = generate_indices(len(batch_inds), MICROBATCH_SIZE, shuffle = False)
             tok_time = timer.hit()
             # Split tokens and masks into these microbatches
-            pass_mbs = [(pass_tokens[ind], pass_masks[ind]) for ind in microbatch_inds]
-            rev_mbs = [(rev_tokens[ind], rev_masks[ind]) for ind in microbatch_inds]
+            with torch.cuda.amp.autocast():
+                pass_mbs = [(pass_tokens[ind], pass_masks[ind]) for ind in microbatch_inds]
+                rev_mbs = [(rev_tokens[ind], rev_masks[ind]) for ind in microbatch_inds]
 
             # Initially get all encodings without grad
             timer.hit()
             pass_encs, rev_encs, forward_loss, forward_acc = encode_and_val(pass_mbs, rev_mbs)
             enc_time = timer.hit()
             opt.zero_grad()
-
             # Encode passages in microbatches (with grad)
             timer.hit()
             for index, (tokens, masks) in enumerate(pass_mbs):
                 pass_tmp = pass_encs.copy()
-                pass_tmp[index] = model.encodeX(tokens, masks)
+                with torch.cuda.amp.autocast():
+                    pass_tmp[index] = model.encodeX(tokens, masks)
                 loss, _ = model.cLoss(torch.cat(pass_tmp), torch.cat(rev_encs))
-                loss.backward()
+                scaler.scale(loss).backward()
 
             # Encode reviews in microbatches (with grad)
             for index, (tokens, masks) in enumerate(rev_mbs):
                 rev_tmp = rev_encs.copy()
-                rev_tmp[index] = model.encodeY(tokens, masks)
+                with torch.cuda.amp.autocast():
+                    rev_tmp[index] = model.encodeY(tokens, masks)
                 loss, _ = model.cLoss(torch.cat(pass_encs), torch.cat(rev_tmp))
-                loss.backward()
-            opt.step()
+                scaler.scale(loss).backward()
+            
+            scaler.step(opt)
+            scaler.update()
+            
             back_time = timer.hit()
 
             # Logging (in terminal and on WANDB)
@@ -120,7 +127,7 @@ def train(model, dataset, evalset):
                 torch.save(scheduler.state_dict(), "./schedule.pt")
                 torch.save(opt.state_dict(), "./opt.pt")
             # Run on eval set
-            if iteration % VALIDATE_INTERVAL == 0:
+            if (iteration+1) % VALIDATE_INTERVAL == 0:
                 print("VALIDATING...")
                 model.eval()
                 val_batches_inds = generate_indices(evalset_size, BATCH_SIZE)
@@ -158,6 +165,7 @@ if __name__ == "__main__":
     if LOAD_CHECKPOINT: model.load_state_dict(torch.load("./params.pt"))
     model.cuda()
     if USE_HALF: model.half()
+
 
     # Logging stuff
     if DO_LOG:
