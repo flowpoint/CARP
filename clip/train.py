@@ -15,7 +15,6 @@ scaler = torch.cuda.amp.GradScaler()
 # Dataset assumed to be list of pairs on memory
 def train(model, dataset, evalset):
     # Tokenizes string batch using encoder tokenizer
-    # Also adds CLS tokens to end
     def tok(string_batch):
         for i, _ in enumerate(string_batch):
             if len(string_batch[i]) > N_CTX:

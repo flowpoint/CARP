@@ -16,15 +16,15 @@ class TextEncoder(nn.Module):
         self.tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
         self.d_model = util.get_d_model(self)
 
-        # Add cls token to model and tokenizer
-        self.tokenizer.add_tokens(['[CLS]', '[quote]'])
+        # Add quote token to model and tokenizer
+        self.tokenizer.add_tokens(['[quote]'])
         self.model.resize_token_embeddings(len(self.tokenizer))
 
     def add_cls(self, string_batch):
         return [s + "[CLS]" for s in string_batch]
 
     def tok(self, string_batch):
-        return self.tokenizer(self.add_cls(string_batch),
+        return self.tokenizer(string_batch,
                 return_tensors = 'pt',
                 padding = True).to('cuda')
     
