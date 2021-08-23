@@ -120,7 +120,7 @@ def train(model, dataset, evalset):
             if iteration % CHECKPOINT_INTERVAL == 0:
                 print("SAVING...")
                 # Only save extra once every 20
-                if iteration % (5 * CHECKPOINT_INTERVAL) == 0:
+                if iteration % (20 * CHECKPOINT_INTERVAL) == 0:
                     torch.save(model.state_dict(), "./checkpoints/" + str(iteration) \
                            + "params.pt")
                 torch.save(model.state_dict(), "./params.pt")
