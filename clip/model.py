@@ -24,24 +24,24 @@ class ContrastiveModel(nn.Module):
         with torch.no_grad():
             self.logit_scale.clamp(self.clamp_min, self.clamp_max)
 
-    def encodeX(self, x, masks = None):
-        x = self.encA(x, masks)
+    def encodeX(self, x, masks = None, device='cuda'):
+        x = self.encA(x, masks, device=device)
         return self.projA(x)
 
-    def encodeY(self, y, masks = None):
-        y = self.encB(y, masks)
+    def encodeY(self, y, masks = None, device='cuda'):
+        y = self.encB(y, masks, device=device)
         return self.projB(y)
 
     # Calculate contrastive loss between embedding groups
     # x, y are assumed encoding/embeddings here
-    def cLoss(self, x, y):
+    def cLoss(self, x, y, device='cuda'):
         n = x.shape[0]
         # normalize
         x = F.normalize(x)
         y = F.normalize(y)
 
         logits = x @ y.T * self.logit_scale.exp()
-        labels = torch.arange(n, device = 'cuda')
+        labels = torch.arange(n, device = device)
 
         loss_i = F.cross_entropy(logits, labels)
         loss_t = F.cross_entropy(logits.T, labels)
@@ -50,7 +50,7 @@ class ContrastiveModel(nn.Module):
 
         return (loss_i + loss_t) / 2, (acc_i + acc_t) / n / 2
 
-    def forward(self, x, y):
-        x = self.encodeX(x)
-        y = self.encodeY(y)
+    def forward(self, x, y, device="cuda"):
+        x = self.encodeX(x, device=device)
+        y = self.encodeY(y, device=device)
         return self.getLogits(x, y)

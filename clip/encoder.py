@@ -11,7 +11,7 @@ class TextEncoder(nn.Module):
     def __init__(self):
         super().__init__()
         
-        self.model = AutoModel.from_pretrained(MODEL_PATH).cuda()
+        self.model = AutoModel.from_pretrained(MODEL_PATH)
         if USE_HALF: self.model.half()
         self.tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
         self.d_model = util.get_d_model(self)
@@ -23,14 +23,14 @@ class TextEncoder(nn.Module):
     def add_cls(self, string_batch):
         return [s + "[CLS]" for s in string_batch]
 
-    def tok(self, string_batch):
+    def tok(self, string_batch, device="cuda"):
         return self.tokenizer(self.add_cls(string_batch),
                 return_tensors = 'pt',
-                padding = True).to('cuda')
+                padding = True).to(device)
     
-    def forward(self, x, mask = None, tokenize = False, mask_sum = True):
+    def forward(self, x, mask = None, tokenize = False, mask_sum = True, device="cuda"):
         if tokenize:
-            x = self.tok(x)
+            x = self.tok(x, device)
             mask = x['attention_mask']
             x = x['input_ids']
         

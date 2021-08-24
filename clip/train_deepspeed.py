@@ -1,37 +1,21 @@
-import deepspeed
 import torch
 import torch.nn.functional as F
 from torch import nn
-from constants import *
+from torch.optim.lr_scheduler import LambdaLR
 import numpy as np
 import math
-
-from util import chunk, generate_indices
-
-# Calculate contrastive loss between two encodings
-class CLIPLoss(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.logit_scale = nn.Parameter(torch.ones([]) * np.log(1/0.07))
-
-    def forward(self, x_embed, y_embed):
-        n = x_embed.shape[0]
-        x_embed = F.normalize(x_embed)
-        y_embed = F.normalize(y_embed)
-
-        logits = x_embed @ y_embed.T * torch.exp(self.logit_scale)
-        labels = torch.arange(n, device = 'cuda')
-    
-        loss_i = F.cross_entropy(logits, labels)
-        loss_t = F.cross_entropy(logits.T, labels)
-        acc_i = (torch.argmax(logits, dim = 1) == labels).sum()
-        acc_t = (torch.argmax(logits, dim = 0) == labels).sum()
-
-        return (loss_i + loss_t) / 2, (acc_i + acc_t) / n / 2
+import wandb
+import argparse
+import deepspeed
+from constants import *
+from util import chunk, generate_indices, get_scheduling_func
+scaler = torch.cuda.amp.GradScaler()
 
 # Dataset assumed to be list of pairs on memory
-def train(model, dataset, args = None):
-    
+def train(model, dataset, evalset, args=None):
+    parameters = filter(lambda p: p.requires_grad, model.parameters())
+    model_engine, opt, _, _ = deepspeed.initialize(args=args, model=model, model_parameters=parameters)
+
     # Tokenizes string batch using encoder tokenizer
     # Also adds CLS tokens to end
     def tok(string_batch):
@@ -43,7 +27,7 @@ def train(model, dataset, args = None):
 
     # From indices into dataset, gets batch in form of:
     # (passage tokens, passage masks, review tokens, review masks)
-    def get_batch_tokens(inds):
+    def get_batch_tokens(dataset, inds):
         batch = [dataset[ind] for ind in inds]
         pass_batch = [pair[0] for pair in batch]
         rev_batch = [pair[1] for pair in batch]
@@ -57,20 +41,33 @@ def train(model, dataset, args = None):
 
         return pass_tokens, pass_masks, rev_tokens, rev_masks
 
-    opt = torch.optim.AdamW(model.parameters(), lr = LEARNING_RATE, weight_decay = 0.01)
-    model_engine = deepspeed.initialize(args = args, model = model,
-                                        model_parameters = model.parameters(),
-                                        optimizer = opt)
-    
-    clip_loss = CLIPLoss()
+    # Get encodings and validates them (gets loss and accuracy) without grad
+    def encode_and_val(pass_mbs, rev_mbs):
+        with torch.no_grad():
+            pass_encs = [model.encodeX(tokens, masks, device=model_engine.device)
+                for (tokens, masks) in pass_mbs]
+            
+            rev_encs = [model.encodeY(tokens, masks, device=model_engine.device)
+                for (tokens, masks) in rev_mbs]
+        
+            test_loss, test_acc = model.cLoss(torch.cat(pass_encs), torch.cat(rev_encs), device=model_engine.device)
+        return pass_encs, rev_encs, test_loss, test_acc
 
+    #scheduler = LambdaLR(opt, get_scheduling_func())
+    if LOAD_CHECKPOINT:
+        opt.load_state_dict(torch.load("./opt.pt"))
+    
+    model.train() 
+    
     dataset_size = len(dataset)
-    torch.cuda.synchronize()
+    evalset_size = len(evalset)
+
+    iteration = 0
+    
     for epoch in range(EPOCHS):
         batches_inds = generate_indices(dataset_size, BATCH_SIZE)
         for batch_inds in batches_inds:
-            batch_loss = 0
-            pass_tokens, pass_masks, rev_tokens, rev_masks = get_batch_tokens(batch_inds)
+            pass_tokens, pass_masks, rev_tokens, rev_masks = get_batch_tokens(dataset, batch_inds)
             microbatch_inds = generate_indices(len(batch_inds), MICROBATCH_SIZE, shuffle = False)
 
             # Split tokens and masks into these microbatches
@@ -78,54 +75,93 @@ def train(model, dataset, args = None):
             rev_mbs = [(rev_tokens[ind], rev_masks[ind]) for ind in microbatch_inds]
 
             # Initially get all encodings without grad
-            with torch.no_grad():
-                pass_encs = [model.encodeX(tokens, masks)
-                        for (tokens, masks) in pass_mbs]
-                
-                rev_encs = [model.encodeY(tokens, masks)
-                        for (tokens, masks) in rev_mbs]
-                
-                loss, acc = clip_loss(torch.cat(pass_encs), torch.cat(rev_encs))
-            
-            opt.zero_grad()
+            pass_encs, rev_encs, forward_loss, forward_acc = encode_and_val(pass_mbs, rev_mbs)
 
+            opt.zero_grad()
             # Encode passages in microbatches (with grad)
             for index, (tokens, masks) in enumerate(pass_mbs):
-                torch.autograd.set_detect_anomaly(True)
-                
                 pass_tmp = pass_encs.copy()
-                pass_tmp[index] = model.encodeX(tokens, masks)
-                
-                loss, _ = clip_loss(torch.cat(pass_tmp), torch.cat(rev_encs))
-                batch_loss += loss.item()
+                pass_tmp[index] = model.encodeX(tokens, masks, device=model_engine.device)
+                loss, _ = model.cLoss(torch.cat(pass_tmp), torch.cat(rev_encs), device=model_engine.device)
                 model_engine.backward(loss)
 
             # Encode reviews in microbatches (with grad)
             for index, (tokens, masks) in enumerate(rev_mbs):
                 rev_tmp = rev_encs.copy()
-                rev_tmp[index] = model.encodeY(tokens, masks)
-                loss, _ = clip_loss(torch.cat(pass_encs), torch.cat(rev_tmp))
-                batch_loss += loss.item()
+                rev_tmp[index] = model.encodeY(tokens, masks, device=model_engine.device)
+                loss, _ = model.cLoss(torch.cat(pass_encs), torch.cat(rev_tmp), device=model_engine.device)
                 model_engine.backward(loss)
 
             model_engine.step()
 
-            print("EPOCH [" + str(epoch) + "/" + str(EPOCHS) +
-                  "] Batch Loss: " + str(round(batch_loss, 3)))
 
-            print("Succesfully finished single training step!")
-            exit()
+            # Logging (in terminal and on WANDB)
+            if iteration % LOG_INTERVAL == 0:
+                print("EPOCH [" + str(epoch) + "/" + str(EPOCHS) +
+                  "] Batch Loss: " + str(forward_loss.item()))
+                if DO_LOG:
+                    wandb.log({"Loss/train": forward_loss,
+                            "Acc/train": forward_acc})
+            # Checkpoint model and scheduler
+            if iteration % CHECKPOINT_INTERVAL == 0:
+                print("SAVING...")
+                # Only save extra once every 20
+                if iteration % (5 * CHECKPOINT_INTERVAL) == 0:
+                    torch.save(model_engine.module.state_dict(), "./checkpoints/" + str(iteration) \
+                           + "params.pt")
+                torch.save(model_engine.module.state_dict(), "./params.pt")
+                #torch.save(opt.state_dict(), "./opt.pt")
+            # Run on eval set
+            if (iteration+1) % VALIDATE_INTERVAL == 0:
+                print("VALIDATING...")
+                model_engine.eval()
+                val_batches_inds = generate_indices(evalset_size, BATCH_SIZE)
+                val_losses, val_accs = [], []
+                for batch_inds in val_batches_inds:
+                    pass_t, pass_m, rev_t, rev_m = get_batch_tokens(evalset, batch_inds)
+                    microbatch_inds = generate_indices(len(batch_inds), MICROBATCH_SIZE, shuffle = False)
+
+                    pass_mbs = [(pass_t[ind], pass_m[ind]) for ind in microbatch_inds]
+                    rev_mbs = [(rev_t[ind], rev_m[ind]) for ind in microbatch_inds]
+                    
+                    _, _, val_loss, val_acc = encode_and_val(pass_mbs, rev_mbs)
+                    val_losses.append(val_loss.item())
+                    val_accs.append(val_acc.item())
+                val_loss = sum(val_losses)/len(val_losses)
+                val_acc = sum(val_accs)/len(val_accs)
+                print("Validation Avg Loss: " + str(val_loss))
+                print("Validation Avg Accuracy: " + str(val_acc))
+                if DO_LOG:
+                    wandb.log({"Loss/validation": val_loss})
+                    wandb.log({"Acc/validation": val_acc})
+                model_engine.train()
+            
+            iteration += 1
+            model_engine.module.clamp()
 
 from model import ContrastiveModel
 from encoder import TextEncoder
-from get_wp_testing import get_dataset
+from dataloading import get_dataset
 import util
 
 if __name__ == "__main__":
+    parser=argparse.ArgumentParser(description='CARP')
+    parser = deepspeed.add_config_arguments(parser)
+    parser.add_argument('--local_rank', type=int, default=-1,
+                        help='local rank passed from distributed launcher')
+    args=parser.parse_args()
     model = ContrastiveModel(TextEncoder(), TextEncoder())
-    model.cuda()
+    if LOAD_CHECKPOINT: model.load_state_dict(torch.load("./params.pt"))
 
-    dataset = get_dataset()
-
-    train(model, dataset, util.get_arguments())
     
+
+
+    # Logging stuff
+    if DO_LOG:
+        wandb.init(project = "CARP", entity = "EleutherAI", resume = LOAD_CHECKPOINT)
+        wandb.watch(model)
+    
+    dataset, evalset = get_dataset()
+    print("data loaded")
+
+    train(model, dataset, evalset, args)

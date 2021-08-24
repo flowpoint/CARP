@@ -82,7 +82,7 @@ def train(model, dataset, evalset):
                 pass_tmp = pass_encs.copy()
                 with torch.cuda.amp.autocast():
                     pass_tmp[index] = model.encodeX(tokens, masks)
-                loss, _ = model.cLoss(torch.cat(pass_tmp), torch.cat(rev_encs))
+                    loss, _ = model.cLoss(torch.cat(pass_tmp), torch.cat(rev_encs))
                 scaler.scale(loss).backward()
 
             # Encode reviews in microbatches (with grad)
@@ -90,7 +90,7 @@ def train(model, dataset, evalset):
                 rev_tmp = rev_encs.copy()
                 with torch.cuda.amp.autocast():
                     rev_tmp[index] = model.encodeY(tokens, masks)
-                loss, _ = model.cLoss(torch.cat(pass_encs), torch.cat(rev_tmp))
+                    loss, _ = model.cLoss(torch.cat(pass_encs), torch.cat(rev_tmp))
                 scaler.scale(loss).backward()
 
             scaler.step(opt)

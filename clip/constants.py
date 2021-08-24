@@ -1,7 +1,7 @@
 N_CTX = 512
 EPOCHS = 10
 BATCH_SIZE = 512 # Contrastive batch
-MICROBATCH_SIZE = 8 # Minibatches in contrastive batch
+MICROBATCH_SIZE = 32 # Minibatches in contrastive batch
 
 # Size of encodings
 LATENT_DIM = 2048
