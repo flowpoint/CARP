@@ -10,12 +10,11 @@ import deepspeed
 from constants import *
 from util import chunk, generate_indices, get_scheduling_func
 
-scaler = torch.cuda.amp.GradScaler()
 
 # Dataset assumed to be list of pairs on memory
 def train(model, dataset, evalset, args=None):
     parameters = filter(lambda p: p.requires_grad, model.parameters())
-    model_engine, opt, _, _ = deepspeed.initialize(args=args, model=model, model_parameters=parameters)
+    model_engine, opt, _, scheduler = deepspeed.initialize(args=args, model=model, model_parameters=parameters)
 
     # Tokenizes string batch using encoder tokenizer
     # Also adds CLS tokens to end
@@ -64,7 +63,7 @@ def train(model, dataset, evalset, args=None):
     evalset_size = len(evalset)
 
     iteration = 0
-    
+
     for epoch in range(EPOCHS):
         batches_inds = generate_indices(dataset_size, BATCH_SIZE)
         for batch_inds in batches_inds:
@@ -94,6 +93,7 @@ def train(model, dataset, evalset, args=None):
                 model_engine.backward(loss)
 
             model_engine.step()
+            scheduler.step()
 
 
             # Logging (in terminal and on WANDB)
