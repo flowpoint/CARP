@@ -9,13 +9,15 @@ import argparse
 import deepspeed
 from constants import *
 from util import chunk, generate_indices, get_scheduling_func
+from deepspeed.runtime.lr_schedules import WARMUP_MAX_LR, WarmupDecayLR
 scaler = torch.cuda.amp.GradScaler()
 
 # Dataset assumed to be list of pairs on memory
 def train(model, dataset, evalset, args=None):
     parameters = filter(lambda p: p.requires_grad, model.parameters())
     model_engine, opt, _, _ = deepspeed.initialize(args=args, model=model, model_parameters=parameters)
-
+    scheduler = WarmupDecayLR(opt, total_num_steps=5000, warmup_min_lr=0,\
+        warmup_max_lr=5e-5, warmup_num_steps=30, last_batch_iteration=5000)
     # Tokenizes string batch using encoder tokenizer
     # Also adds CLS tokens to end
     def tok(string_batch):
@@ -50,7 +52,7 @@ def train(model, dataset, evalset, args=None):
             rev_encs = [model_engine.module.encodeY(tokens, masks, device=model_engine.device)
                 for (tokens, masks) in rev_mbs]
         
-            test_loss, test_acc = model.cLoss(torch.cat(pass_encs), torch.cat(rev_encs), device=model_engine.device)
+            test_loss, test_acc = model_engine.module.cLoss(torch.cat(pass_encs), torch.cat(rev_encs), device=model_engine.device)
         return pass_encs, rev_encs, test_loss, test_acc
 
     #scheduler = LambdaLR(opt, get_scheduling_func())
@@ -77,7 +79,7 @@ def train(model, dataset, evalset, args=None):
             # Initially get all encodings without grad
             pass_encs, rev_encs, forward_loss, forward_acc = encode_and_val(pass_mbs, rev_mbs)
 
-            opt.zero_grad()
+            #opt.zero_grad()
             # Encode passages in microbatches (with grad)
             for index, (tokens, masks) in enumerate(pass_mbs):
                 pass_tmp = pass_encs.copy()
@@ -138,6 +140,7 @@ def train(model, dataset, evalset, args=None):
             
             iteration += 1
             model_engine.module.clamp()
+            scheduler.step()
 
 from model import ContrastiveModel
 from encoder import TextEncoder

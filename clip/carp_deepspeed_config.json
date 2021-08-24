@@ -23,15 +23,5 @@
         ],
         "eps": 1e-6
       }
-    },
-    "scheduler": {
-      "type": "WarmupDecayLR",
-      "params": {
-        "warmup_min_lr": 1e-6,
-        "total_num_steps":5000,
-        "warmup_max_lr": 5e-5,
-        "warmup_num_steps": 20,
-        "last_batch_iteration": 5000
-        }
     }
 }
