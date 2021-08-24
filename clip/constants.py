@@ -7,7 +7,7 @@ MICROBATCH_SIZE = 32 # Minibatches in contrastive batch
 LATENT_DIM = 2048
 
 # info on HF model being used
-MODEL_PATH = "microsoft/deberta-large"
+MODEL_PATH = "microsoft/deberta-v2-xlarge"
 
 # training
 LR_RAMP_STEPS = 400
@@ -20,7 +20,7 @@ CHECKPOINT_INTERVAL = 15
 VALIDATE_INTERVAL = 50
 LOAD_CHECKPOINT = False
 USE_HALF = False
-DO_LOG = True # Log to WANDB?
+DO_LOG = False # Log to WANDB?
 # For dataset
 VALIDATION_SIZE = 1000
 USE_BUCKET = False

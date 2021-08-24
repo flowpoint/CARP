@@ -8,12 +8,13 @@ import wandb
 
 from constants import *
 from util import chunk, generate_indices, get_scheduling_func
+from clock import Clock
+
 scaler = torch.cuda.amp.GradScaler()
 
 # Dataset assumed to be list of pairs on memory
 def train(model, dataset, evalset):
     # Tokenizes string batch using encoder tokenizer
-    # Also adds CLS tokens to end
     def tok(string_batch):
         for i, _ in enumerate(string_batch):
             if len(string_batch[i]) > N_CTX:
@@ -62,22 +63,27 @@ def train(model, dataset, evalset):
 
     iteration = 0
     
+    timer = Clock()
+    
     for epoch in range(EPOCHS):
         batches_inds = generate_indices(dataset_size, BATCH_SIZE)
         for batch_inds in batches_inds:
+            timer.hit()
             pass_tokens, pass_masks, rev_tokens, rev_masks = get_batch_tokens(dataset, batch_inds)
             microbatch_inds = generate_indices(len(batch_inds), MICROBATCH_SIZE, shuffle = False)
-
+            tok_time = timer.hit()
             # Split tokens and masks into these microbatches
             with torch.cuda.amp.autocast():
                 pass_mbs = [(pass_tokens[ind], pass_masks[ind]) for ind in microbatch_inds]
                 rev_mbs = [(rev_tokens[ind], rev_masks[ind]) for ind in microbatch_inds]
 
             # Initially get all encodings without grad
+            timer.hit()
             pass_encs, rev_encs, forward_loss, forward_acc = encode_and_val(pass_mbs, rev_mbs)
-
+            enc_time = timer.hit()
             opt.zero_grad()
             # Encode passages in microbatches (with grad)
+            timer.hit()
             for index, (tokens, masks) in enumerate(pass_mbs):
                 pass_tmp = pass_encs.copy()
                 with torch.cuda.amp.autocast():
@@ -92,22 +98,28 @@ def train(model, dataset, evalset):
                     rev_tmp[index] = model.encodeY(tokens, masks)
                     loss, _ = model.cLoss(torch.cat(pass_encs), torch.cat(rev_tmp))
                 scaler.scale(loss).backward()
-
+            
             scaler.step(opt)
             scaler.update()
+            
+            back_time = timer.hit()
 
             # Logging (in terminal and on WANDB)
+            timer.hit()
             if iteration % LOG_INTERVAL == 0:
                 print("EPOCH [" + str(epoch) + "/" + str(EPOCHS) +
                   "] Batch Loss: " + str(forward_loss.item()))
                 if DO_LOG:
                     wandb.log({"Loss/train": forward_loss,
-                            "Acc/train": forward_acc})
+                            "Acc/train": forward_acc,
+                            "Time/Tokenization": tok_time,
+                            "Time/Encoding": enc_time,
+                            "Time/Backward": back_time})
             # Checkpoint model and scheduler
             if iteration % CHECKPOINT_INTERVAL == 0:
                 print("SAVING...")
                 # Only save extra once every 20
-                if iteration % (5 * CHECKPOINT_INTERVAL) == 0:
+                if iteration % (20 * CHECKPOINT_INTERVAL) == 0:
                     torch.save(model.state_dict(), "./checkpoints/" + str(iteration) \
                            + "params.pt")
                 torch.save(model.state_dict(), "./params.pt")
