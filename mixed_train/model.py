@@ -22,7 +22,7 @@ class ContrastiveModel(nn.Module):
 
     def clamp(self):
         with torch.no_grad():
-            self.temp.clamp(slef.clamp_min, self.clamp_max)
+            self.temp.clamp(self.clamp_min, self.clamp_max)
 
     def encodeX(self, x, masks = None):
         x = self.encX(x, masks)

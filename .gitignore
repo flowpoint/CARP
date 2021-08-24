@@ -1,0 +1,7 @@
+*.pyc
+*.pt
+*.rar
+*.txt
+*.swp
+clip/wandb
+clip/critiquecircle_critiques_masked_anon
