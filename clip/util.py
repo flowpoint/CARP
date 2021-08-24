@@ -14,7 +14,7 @@ def generate_indices(total_size, batch_size, shuffle = True):
 
 # Get output dim of TextEncoder
 def get_d_model(enc):
-    return 1024
+    return 1536
 	#x = ["hello world", "hi world", "bla bla"]
 	#y = enc(x, tokenize = True, mask_sum = False)
 	#return y.shape[-1]	

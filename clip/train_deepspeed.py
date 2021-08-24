@@ -44,10 +44,10 @@ def train(model, dataset, evalset, args=None):
     # Get encodings and validates them (gets loss and accuracy) without grad
     def encode_and_val(pass_mbs, rev_mbs):
         with torch.no_grad():
-            pass_encs = [model.encodeX(tokens, masks, device=model_engine.device)
+            pass_encs = [model_engine.module.encodeX(tokens, masks, device=model_engine.device)
                 for (tokens, masks) in pass_mbs]
             
-            rev_encs = [model.encodeY(tokens, masks, device=model_engine.device)
+            rev_encs = [model_engine.module.encodeY(tokens, masks, device=model_engine.device)
                 for (tokens, masks) in rev_mbs]
         
             test_loss, test_acc = model.cLoss(torch.cat(pass_encs), torch.cat(rev_encs), device=model_engine.device)
@@ -57,7 +57,7 @@ def train(model, dataset, evalset, args=None):
     if LOAD_CHECKPOINT:
         opt.load_state_dict(torch.load("./opt.pt"))
     
-    model.train() 
+    model_engine.train() 
     
     dataset_size = len(dataset)
     evalset_size = len(evalset)
@@ -81,15 +81,15 @@ def train(model, dataset, evalset, args=None):
             # Encode passages in microbatches (with grad)
             for index, (tokens, masks) in enumerate(pass_mbs):
                 pass_tmp = pass_encs.copy()
-                pass_tmp[index] = model.encodeX(tokens, masks, device=model_engine.device)
-                loss, _ = model.cLoss(torch.cat(pass_tmp), torch.cat(rev_encs), device=model_engine.device)
+                pass_tmp[index] = model_engine.module.encodeX(tokens, masks, device=model_engine.device)
+                loss, _ = model_engine.module.cLoss(torch.cat(pass_tmp), torch.cat(rev_encs), device=model_engine.device)
                 model_engine.backward(loss)
 
             # Encode reviews in microbatches (with grad)
             for index, (tokens, masks) in enumerate(rev_mbs):
                 rev_tmp = rev_encs.copy()
-                rev_tmp[index] = model.encodeY(tokens, masks, device=model_engine.device)
-                loss, _ = model.cLoss(torch.cat(pass_encs), torch.cat(rev_tmp), device=model_engine.device)
+                rev_tmp[index] = model_engine.module.encodeY(tokens, masks, device=model_engine.device)
+                loss, _ = model_engine.module.cLoss(torch.cat(pass_encs), torch.cat(rev_tmp), device=model_engine.device)
                 model_engine.backward(loss)
 
             model_engine.step()
