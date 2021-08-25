@@ -109,15 +109,15 @@ class EOTTextEncoder(nn.Module):
                             output_hidden_states = True, return_dict = True)
         hidden = self.extract_fn(out) # -> B x N x D
         
-        B, N, D = hidden.shape
+        #B, N, D = hidden.shape
         # In each mask, find last 1
         eot_inds = last_ones(mask)
-        y = torch.zeros(B, D, device = 'cuda')
-        for i in range(B):
-            y[i] = hidden[i, eot_inds[i]-1] 
-        # Embeddings of EOT tokens
-        y = F.normalize(y)
+        #y = torch.zeros(B, D, device = 'cuda')
+        #for i in range(B):
+        #    y[i] = hidden[i, eot_inds[i]] 
+        
+        y = hidden[torch.arange(hidden.size(0)), eot_inds]
 
         return y 
 
-TextEncoder = SumTextEncoder
+TextEncoder = EOTTextEncoder
