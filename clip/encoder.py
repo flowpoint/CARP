@@ -20,10 +20,10 @@ extract_fns = {'EleutherAI/gpt-neo-1.3B' :
                 (lambda out : out[0])}
 
 d_models = {'EleutherAI/gpt-neo-1.3B' : 2048,
-            'EleutherAI/gpt-neo-2.7B' : 2048,
+            'EleutherAI/gpt-neo-2.7B' : 2560,
             'roberta-large' : 1024,
             'roberta-base' : 768,
-            'microsoft/deberta-v2-xlarge' : 1024}
+            'microsoft/deberta-v2-xlarge' : 1536}
 
 
 class SumTextEncoder(nn.Module):
