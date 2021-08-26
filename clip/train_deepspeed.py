@@ -107,7 +107,7 @@ def train(model, dataset, evalset, args=None):
             if iteration % CHECKPOINT_INTERVAL == 0:
                 print("SAVING...")
                 # Only save extra once every 20
-                if iteration % (5 * CHECKPOINT_INTERVAL) == 0:
+                if iteration % (20 * CHECKPOINT_INTERVAL) == 0:
                     torch.save(model_engine.module.state_dict(), "./checkpoints/" + str(iteration) \
                            + "params.pt")
                 torch.save(model_engine.module.state_dict(), "./params.pt")
@@ -116,20 +116,17 @@ def train(model, dataset, evalset, args=None):
             if (iteration+1) % VALIDATE_INTERVAL == 0:
                 print("VALIDATING...")
                 model_engine.eval()
-                val_batches_inds = generate_indices(evalset_size, BATCH_SIZE)
-                val_losses, val_accs = [], []
-                for batch_inds in val_batches_inds:
-                    pass_t, pass_m, rev_t, rev_m = get_batch_tokens(evalset, batch_inds)
-                    microbatch_inds = generate_indices(len(batch_inds), MICROBATCH_SIZE, shuffle = False)
+                
+                pass_t, pass_m, rev_t, rev_m = get_batch_tokens(evalset, np.arange(evalset_size))
+                microbatch_inds = generate_indices(evalset_size, MICROBATCH_SIZE, shuffle = False)
 
-                    pass_mbs = [(pass_t[ind], pass_m[ind]) for ind in microbatch_inds]
-                    rev_mbs = [(rev_t[ind], rev_m[ind]) for ind in microbatch_inds]
+                pass_mbs = [(pass_t[ind], pass_m[ind]) for ind in microbatch_inds]
+                rev_mbs = [(rev_t[ind], rev_m[ind]) for ind in microbatch_inds]
                     
-                    _, _, val_loss, val_acc = encode_and_val(pass_mbs, rev_mbs)
-                    val_losses.append(val_loss.item())
-                    val_accs.append(val_acc.item())
-                val_loss = sum(val_losses)/len(val_losses)
-                val_acc = sum(val_accs)/len(val_accs)
+                _, _, val_loss, val_acc = encode_and_val(pass_mbs, rev_mbs)
+                val_loss = val_loss.item()
+                val_acc = val_acc.item()
+
                 print("Validation Avg Loss: " + str(val_loss))
                 print("Validation Avg Accuracy: " + str(val_acc))
                 if DO_LOG:
