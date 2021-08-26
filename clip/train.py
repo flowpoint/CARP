@@ -98,7 +98,13 @@ def train(model, dataset, evalset):
                     rev_tmp[index] = model.encodeY(tokens, masks)
                     loss, _ = model.cLoss(torch.cat(pass_encs), torch.cat(rev_tmp))
                 scaler.scale(loss).backward()
-            
+           
+            # Clipping
+            if GRAD_CLIP != -1: 
+                scaler.unscale_(opt)
+                torch.nn.utils.clip_grad_norm_(model.parameters(), GRAD_CLIP)
+                
+
             scaler.step(opt)
             scaler.update()
             

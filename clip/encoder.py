@@ -120,4 +120,4 @@ class EOTTextEncoder(nn.Module):
 
         return y 
 
-TextEncoder = EOTTextEncoder
+TextEncoder = SumTextEncoder
