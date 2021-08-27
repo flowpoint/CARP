@@ -6,6 +6,25 @@ import math
 
 from constants import *
 
+# Project encoder output to latent space
+class Projection(nn.Module):
+    def __init__(self, in_dim, out_dim):
+        super().__init__()
+
+        self.proj = nn.Linear(in_dim, out_dim)
+        self.gelu = nn.GELU()
+        self.fc = nn.Linear(out_dim, out_dim)
+        self.dropout = nn.Dropout(PROJ_DROPOUT)
+        self.layer_norm = nn.LayerNorm(out_dim)
+
+    def forward(self, x):
+        projected = self.proj(x)
+        x = self.gelu(projected)
+        x = self.fc(x)
+        x = self.dropout(x)
+        x = x + projected
+        return self.layer_norm(x)
+
 class ContrastiveModel(nn.Module):
     def __init__(self, encA, encB):
         super().__init__()
@@ -13,8 +32,12 @@ class ContrastiveModel(nn.Module):
         self.encA = encA
         self.encB = encB
 
-        self.projA = nn.Linear(self.encA.d_model, LATENT_DIM, bias = False)
-        self.projB = nn.Linear(self.encB.d_model, LATENT_DIM, bias = False)
+        if LINEAR_PROJECTION:
+            self.projA = nn.Linear(self.encA.d_model, LATENT_DIM, bias = False)
+            self.projB = nn.Linear(self.encB.d_model, LATENT_DIM, bias = False)
+        else:
+            self.projA = Projection(self.encA.d_model, LATENT_DIM)
+            self.projB = Projection(self.encB.d_model, LATENT_DIM)
 
         self.logit_scale = nn.Parameter(torch.ones([]) * np.log(1 / 0.07))
         self.clamp_min = math.log(1/100)

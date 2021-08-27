@@ -1,5 +1,6 @@
 {
     "train_micro_batch_size_per_gpu":1,
+    "gradient_clipping":1.0,
     "fp16": {
         "enabled": true,
         "initial_scale_power": 12,

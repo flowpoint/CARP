@@ -20,10 +20,10 @@ extract_fns = {'EleutherAI/gpt-neo-1.3B' :
                 (lambda out : out[0])}
 
 d_models = {'EleutherAI/gpt-neo-1.3B' : 2048,
-            'EleutherAI/gpt-neo-2.7B' : 2048,
+            'EleutherAI/gpt-neo-2.7B' : 2560,
             'roberta-large' : 1024,
             'roberta-base' : 768,
-            'microsoft/deberta-v2-xlarge' : 1024}
+            'microsoft/deberta-v2-xlarge' : 1536}
 
 
 class SumTextEncoder(nn.Module):
@@ -109,15 +109,15 @@ class EOTTextEncoder(nn.Module):
                             output_hidden_states = True, return_dict = True)
         hidden = self.extract_fn(out) # -> B x N x D
         
-        B, N, D = hidden.shape
+        #B, N, D = hidden.shape
         # In each mask, find last 1
         eot_inds = last_ones(mask)
-        y = torch.zeros(B, D, device = 'cuda')
-        for i in range(B):
-            y[i] = hidden[i, eot_inds[i]-1] 
-        # Embeddings of EOT tokens
-        y = F.normalize(y)
+        #y = torch.zeros(B, D, device = 'cuda')
+        #for i in range(B):
+        #    y[i] = hidden[i, eot_inds[i]] 
+        
+        y = hidden[torch.arange(hidden.size(0)), eot_inds]
 
         return y 
 
-TextEncoder = SumTextEncoder
+TextEncoder = EOTTextEncoder
