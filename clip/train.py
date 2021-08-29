@@ -79,7 +79,8 @@ def train(model, dataset, evalset):
 
             # Initially get all encodings without grad
             timer.hit()
-            pass_encs, rev_encs, forward_loss, forward_acc = encode_and_val(pass_mbs, rev_mbs)
+            with torch.cuda.amp.autocast():
+                pass_encs, rev_encs, forward_loss, forward_acc = encode_and_val(pass_mbs, rev_mbs)
             enc_time = timer.hit()
             opt.zero_grad()
             # Encode passages in microbatches (with grad)
@@ -170,7 +171,7 @@ if __name__ == "__main__":
 
     # Logging stuff
     if DO_LOG:
-        wandb.init(project = "CARP", entity = "Shahbuland", resume = LOAD_CHECKPOINT)
+        wandb.init(project = "CARP", entity = "EleutherAI", resume = False)#LOAD_CHECKPOINT)
         wandb.watch(model)
     
     dataset, evalset = get_dataset()
