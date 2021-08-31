@@ -16,6 +16,8 @@ extract_fns = {'EleutherAI/gpt-neo-1.3B' :
                 (lambda out : out[0]),
                 'roberta-base' :
                 (lambda out : out[0]),
+                'klue/roberta-small' :
+                (lambda out : out[0]),
                 'microsoft/deberta-v2-xlarge' :
                 (lambda out : out[0])}
 
@@ -23,6 +25,7 @@ d_models = {'EleutherAI/gpt-neo-1.3B' : 2048,
             'EleutherAI/gpt-neo-2.7B' : 2560,
             'roberta-large' : 1024,
             'roberta-base' : 768,
+            'klue/roberta-small' : 768,
             'microsoft/deberta-v2-xlarge' : 1536}
 
 
@@ -120,4 +123,7 @@ class EOTTextEncoder(nn.Module):
 
         return y 
 
-TextEncoder = EOTTextEncoder
+if MODEL_TYPE == "ar":
+    TextEncoder = EOTTextEncoder
+if MODEL_TYPE == "mlm":
+    TextEncoder = SumTextEncoder

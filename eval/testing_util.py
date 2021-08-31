@@ -1,12 +1,12 @@
-from encoder import TextEncoder
+from encoder import SumTextEncoder
 from model import ContrastiveModel
 from dataloading import get_dataset
 from util import generate_indices
 import torch
 
 # Setup model
-model = ContrastiveModel(TextEncoder(), TextEncoder())
-model.load_state_dict(torch.load("checkpoint.pt"))
+model = ContrastiveModel(SumTextEncoder(), SumTextEncoder())
+model.load_state_dict(torch.load("roberta-large-2044.pt"))
 model.cuda()
 
 # These utility functions serve same purpose as in
@@ -69,7 +69,7 @@ def get_logit(dataset, batch_size):
 
 # Print formated logit given an unordered list of passages
 # and reviews
-def compute_logit(passages, reviews):
+def compute_logit(passages, reviews, mode = "print"):
     pass_tokens = tok(passages)
     rev_tokens = tok(reviews)
     pass_masks = pass_tokens['attention_mask']
@@ -79,6 +79,9 @@ def compute_logit(passages, reviews):
 
     logits = model.getLogits([pass_tokens, pass_masks],
                             [rev_tokens, rev_masks])
+    if mode == "return":
+        return logits
+    
     conf = logits.softmax(1)
 
     for i, row in enumerate(conf):

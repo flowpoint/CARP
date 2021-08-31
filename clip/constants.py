@@ -1,7 +1,7 @@
 N_CTX = 512
 EPOCHS = 10
 BATCH_SIZE = 2048 # Contrastive batch
-MICROBATCH_SIZE = 14 # Minibatches in contrastive batch
+MICROBATCH_SIZE = 32 # Minibatches in contrastive batch
 
 # Size of encodings
 LATENT_DIM = 2048
@@ -9,8 +9,8 @@ PROJ_DROPOUT = 0.1
 LINEAR_PROJECTION = True # Uses more complex projection head if false
 
 # info on HF model being used
-MODEL_PATH = "roberta-large"
-
+MODEL_PATH = "klue/roberta-small"
+MODEL_TYPE = "mlm" # ar or mlm, determines encoder type
 # training
 LR_RAMP_STEPS = 400
 LR_DECAY_STEPS = (1378696/BATCH_SIZE)*5 # One full epoch
